@@ -3,12 +3,12 @@ from .ae_loss import AssociativeEmbeddingLoss
 from .balanced_l1_loss import BalancedL1Loss, balanced_l1_loss
 from .cross_entropy_loss import (CrossEntropyLoss, binary_cross_entropy,
                                  cross_entropy, mask_cross_entropy)
-from .focal_loss import FocalLoss, sigmoid_focal_loss
+from .focal_loss import FocalLoss, sigmoid_focal_loss, ct_focal_loss
 from .gaussian_focal_loss import GaussianFocalLoss
 from .gfocal_loss import DistributionFocalLoss, QualityFocalLoss
 from .ghm_loss import GHMC, GHMR
 from .iou_loss import (BoundedIoULoss, CIoULoss, DIoULoss, GIoULoss, IoULoss,
-                       bounded_iou_loss, iou_loss)
+                       bounded_iou_loss, iou_loss, giou_loss_ct)
 from .kd_loss import KnowledgeDistillationKLDivLoss
 from .mse_loss import MSELoss, mse_loss
 from .pisa_loss import carl_loss, isr_p

@@ -9,7 +9,7 @@ model = dict(
         type='RepVGGNet',
         stem_channels=6,
         stage_channels=[32, 128, 256, 512],
-        block_per_stage= [1, 1, 1, 1],
+        block_per_stage=[1, 1, 1, 1],
         num_out=1,
         norm_cfg=dict(type='BN')),
     neck=dict(
