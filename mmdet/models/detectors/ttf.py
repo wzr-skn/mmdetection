@@ -12,3 +12,5 @@ class TTFNet(SingleStageDetector):
                  pretrained=None):
         super(TTFNet, self).__init__(backbone, neck, bbox_head, train_cfg,
                                      test_cfg, pretrained)
+
+
