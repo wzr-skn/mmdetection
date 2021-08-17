@@ -59,17 +59,18 @@ class NormalConv(ConvModule):
 
 @CUSTOM_CONV_OP.register_module()
 class SepConv(ConvModule):
-    def __init__(self, conv_ch,
+    def __init__(self, in_channels,
+                       out_channels,
                        kernel_size,
                        dialtion=1,
                        norm_cfg=dict(type='BN', requires_grad=True),
                        act_cfg=dict(type='ReLU')):
-
-        super(SepConv, self).__init__(conv_ch,
-                                      conv_ch,
+        assert in_channels == out_channels, "DepthWise Conv, in_channels should equal out_channels"
+        super(SepConv, self).__init__(in_channels,
+                                      out_channels,
                                       kernel_size,
                                       padding=kernel_size//2,
-                                      groups=conv_ch,
+                                      groups=in_channels,
                                       dilation=dialtion,
                                       norm_cfg=norm_cfg,
                                       act_cfg=act_cfg)
