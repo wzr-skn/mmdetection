@@ -6,47 +6,59 @@ base_lr = 0.01
 warmup_iters = 500
 
 model = dict(
-    type='TTFNet',
+    type='YOLOF',
     backbone=dict(
         type='RepVGGNet',
         stem_channels=32,
         stage_channels=(32, 64, 96, 128),
-        block_per_stage=(1, 3, 6, 8, 6, 6),
+        block_per_stage=(1, 3, 6, 8),
         kernel_size=[3, 3, 3, 3],
-        num_out=4,
+        num_out=1,
     ),
 
     neck=dict(
-        type='FuseFPN',
-        in_channels=[32, 64, 96, 128],
-        out_channels=64,
-        conv_cfg=dict(type="NormalConv",
-                      info={"norm_cfg": None})),
+        type='DilatedEncoder',
+        in_channels=128,
+        out_channels=32,
+        block_mid_channels=8,
+        num_residual_blocks=4),
     bbox_head=dict(
-        type='TTFHead',
-        planes=(64, 64, 64),
-        base_down_ratio=32,
-        head_conv=64,
-        wh_conv=64,
-        hm_head_conv_num=2,
-        wh_head_conv_num=2,
+        type='YOLOFHead',
         num_classes=1,
-        wh_offset_base=16,
-        wh_agnostic=True,
-        wh_gaussian=True,
-        norm_cfg=dict(type='SyncBN'),
-        alpha=0.54,
-        hm_weight=1.,
-        wh_weight=5.,
-        use_dla=True))
+        in_channels=32,
+        reg_decoded_bbox=True,
+        anchor_generator=dict(
+            type='AnchorGenerator',
+            ratios=[1.0],
+            scales=[1, 2, 4, 8, 16],
+            strides=[32]),
+        bbox_coder=dict(
+            type='DeltaXYWHBBoxCoder',
+            target_means=[.0, .0, .0, .0],
+            target_stds=[1., 1., 1., 1.],
+            add_ctr_clamp=True,
+            ctr_clamp=32),
+        loss_cls=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.25,
+            loss_weight=1.0),
+        loss_bbox=dict(type='GIoULoss', loss_weight=1.0)),
+    # training and testing settings
+    train_cfg=dict(
+        assigner=dict(
+            type='UniformAssigner', pos_ignore_thr=0.15, neg_ignore_thr=0.7),
+        allowed_border=-1,
+        pos_weight=-1,
+        debug=False),
+    test_cfg=dict(
+        nms_pre=1000,
+        min_bbox_size=0,
+        score_thr=0.05,
+        nms=dict(type='nms', iou_threshold=0.6),
+        max_per_img=100))
 cudnn_benchmark = True
-# training and testing settings
-train_cfg = dict(
-    vis_every_n_iters=100,
-    debug=False)
-test_cfg = dict(
-    score_thr=0.01,
-    max_per_img=100)
 # dataset settings
 
 img_norm_cfg = dict(
@@ -153,7 +165,7 @@ log_config = dict(
 device_ids = range(1)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = 'work_dirs/ttfnet_RepVGG_eiou'
+work_dir = 'work_dirs/YOLOF_RepVGG'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

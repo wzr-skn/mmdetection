@@ -1,11 +1,10 @@
 import torch.nn as nn
+import torch
 from mmcv.cnn import fuse_conv_bn
 from mmcv.cnn import ConvModule
-import torch.nn.functional as F
-from ..build import CUSTOM_CONV_OP
-import torch
+from torch.nn import functional as F
 from collections import OrderedDict
-@CUSTOM_CONV_OP.register_module()
+
 class DBBBlock(nn.Module):
     def __init__(self, in_ch, out_ch, kernel_size=3, stride=1, group=1, norm_cfg=dict(type='BN', requires_grad=True)):
         super(DBBBlock, self).__init__()
@@ -37,19 +36,15 @@ class DBBBlock(nn.Module):
                                                               norm_cfg=norm_cfg,
                                                               groups=1,
                                                               act_cfg=None)
-        conv_1x1_avg["avg"] = nn.AvgPool2d(3, padding=1)
+        conv_1x1_avg["avg"] = nn.AvgPool2d(3, padding=1, stride=1)
         self.conv_1x1_avg = nn.Sequential(conv_1x1_avg)
 
 
         self.conv_1x1 = ConvModule(in_ch, out_ch, kernel_size=(1, 1), stride=stride, padding=(0, 0),
                                        norm_cfg=norm_cfg, act_cfg=None)
         self.stride = stride
-        if self.stride == 1:
-            self.ShortCut = nn.Identity()
-            self.conv = nn.ModuleList([self.conv_3x3, self.conv_1x1, self.ShortCut])
-            # self.conv = nn.ModuleList([self.conv_3x3, self.conv_1x1])
-        else:
-            self.conv = nn.ModuleList([self.conv_3x3, self.conv_1x1])
+
+        self.conv = nn.ModuleList([self.conv_kxk, self.kxk_1x1, self.conv_1x1_avg, self.conv_1x1])
 
 
         self.init_weight()
@@ -76,27 +71,22 @@ class DBBBlock(nn.Module):
 
 
         conv_1x1_kxk_weight = F.conv2d(self.kxk_1x1.conv_kxk.conv.weight, self.kxk_1x1.conv_1x1.conv.weight.permute(1, 0, 2, 3))
-        conv_1x1_kxk_bias = (self.kxk_1x1.conv_kxk.conv.weight*self.kxk_1x1.conv_1x1.conv.bias.shape(1, -1, 1, 1)).sum((1, 2, 3)) + \
+        conv_1x1_kxk_bias = (self.kxk_1x1.conv_kxk.conv.weight*self.kxk_1x1.conv_1x1.conv.bias.reshape(1, -1, 1, 1)).sum((1, 2, 3)) + \
                              self.kxk_1x1.conv_kxk.conv.bias
 
         avg_pooling_weight = nn.Parameter(torch.ones_like(self.conv_kxk.conv.weight) / self.kernel_size**2)
-        avg_pooling_mask = torch.eye(self.in_ch).reshape(self.in_ch, self.in_ch, 1, 1).to(self.conv_3x3.conv.weight.device)
+        avg_pooling_mask = torch.eye(self.in_ch).reshape(self.in_ch, self.in_ch, 1, 1).to(self.conv_kxk.conv.weight.device)
         avg_pooling_weight = avg_pooling_mask * avg_pooling_weight
 
-        conv_1x1_avg_weight = F.conv2d(avg_pooling_weight, self.conv_1x1_avg.conv.weight.permute(1, 0, 2, 3))
-        conv_1x1_avg_bias = (avg_pooling_weight * self.conv_1x1_avg.conv.bias.shape(1, -1, 1, 1)).sum((1, 2, 3)) + \
+        conv_1x1_avg_weight = F.conv2d(avg_pooling_weight, self.conv_1x1_avg.conv_1x1.conv.weight.permute(1, 0, 2, 3))
+        conv_1x1_avg_bias = (avg_pooling_weight * self.conv_1x1_avg.conv_1x1.conv.bias.reshape(1, -1, 1, 1)).sum((1, 2, 3)) + \
                              self.kxk_1x1.conv_kxk.conv.bias
 
 
-        # self.conv = nn.ModuleList([self.conv_kxk_fuse, self.conv_kx1_fuse, self.conv_1xk_fuse])
+        self.conv_kxk.conv.weight = nn.Parameter(conv_1x1_weight + conv_1x1_kxk_weight + conv_1x1_avg_weight + self.conv_kxk.conv.weight)
+        self.conv_kxk.conv.bias = nn.Parameter(conv_1x1_bias + conv_1x1_kxk_bias + conv_1x1_avg_bias + self.conv_kxk.conv.bias)
 
-        self.conv_3x3.conv.bias = torch.nn.Parameter(self.conv_1x1.conv.bias + self.conv_3x3.conv.bias)
-
-        self.conv_kxk.conv.weight = conv_1x1_weight + conv_1x1_kxk_weight + conv_1x1_avg_weight + self.conv_kxk.conv.weight
-        self.conv_kxk.conv.bias = conv_1x1_bias + conv_1x1_kxk_bias + conv_1x1_avg_bias + self.conv_kxk.conv.bias
-
-        self.conv = nn.ModuleList([self.conv_3x3])
-
+        self.conv = nn.ModuleList([self.conv_kxk])
     def forward(self, x):
         out = []
         for module in self.conv:
@@ -108,3 +98,12 @@ class DBBBlock(nn.Module):
         return res
 
 
+x = torch.randn(1, 64, 256, 256)
+DBBUnit = DBBBlock(64, 64, stride=1)
+# DBBUnit.eval()
+y_train = DBBUnit(x)
+DBBUnit.fuse_conv()
+y_test = DBBUnit(x)
+
+print(torch.abs((y_train-y_test).sum()))
+print(111)
