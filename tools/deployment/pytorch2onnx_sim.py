@@ -117,7 +117,7 @@ if __name__ == '__main__':
     cfg.model.train_cfg = None
     model = build_detector(cfg.model)
     model.eval()
-    recursive_fuse_conv(model)
+
     try:
         checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
 
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         res = input("checkpoint doesn't exist, still export onnx with random init model? yes/no:")
         if res == "yes" or "y":
             pass
-
+    recursive_fuse_conv(model)
     input_shape = args.shape
     # convert model to onnx file
     pytorch2onnx(

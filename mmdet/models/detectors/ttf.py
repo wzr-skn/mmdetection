@@ -13,4 +13,8 @@ class TTFNet(SingleStageDetector):
         super(TTFNet, self).__init__(backbone, neck, bbox_head, train_cfg,
                                      test_cfg, pretrained)
 
+    def forward_dummy(self, img):
+        hm, wh = super().forward_dummy(img)
+        import torch.nn.functional as F
+        return F.sigmoid(hm), wh
 

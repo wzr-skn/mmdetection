@@ -2,7 +2,7 @@
 dataset_type = 'CocoDataset'
 data_root = '/usr/videodate/yehc/'
 
-base_lr = 1e-2
+base_lr = 1e-3
 warmup_iters = 1000
 
 model = dict(
@@ -19,17 +19,17 @@ model = dict(
     neck=dict(
         type='FuseFPN',
         in_channels=[32, 72, 168, 192],
-        out_channels=64,
+        out_channels=32,
         conv_type="SepConv",
         norm_cfg=None),
     bbox_head=dict(
         type='TTFHead',
-        planes=(64, 64, 64),
+        planes=(32, 32, 32),
         base_down_ratio=32,
-        head_conv=64,
-        wh_conv=64,
-        hm_head_conv_num=1,
-        wh_head_conv_num=1,
+        head_conv=32,
+        wh_conv=32,
+        hm_head_conv_num=2,
+        wh_head_conv_num=2,
         num_classes=1,
         wh_offset_base=16,
         wh_agnostic=True,
@@ -38,7 +38,8 @@ model = dict(
         alpha=0.54,
         hm_weight=1.,
         wh_weight=5.,
-        use_dla=True))
+        use_dla=True,
+        conv_type='Lite'))
 cudnn_benchmark = True
 # training and testing settings
 train_cfg = dict(
@@ -55,12 +56,16 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='LoadImageFromFile', to_float32=True),
     dict(type='LoadAnnotations', with_bbox=True),
+    dict(type='PhotoMetricDistortion'),
+    dict(
+        type='MinIoURandomCrop',
+        min_ious=(0.1, 0.3, 0.5, 0.7, 0.9),
+        min_crop_size=0.3),
     dict(
         type='Resize',
         img_scale=[(512, 512)],
         multiscale_mode='value',
         keep_ratio=False),
-    dict(type='PhotoMetricDistortion'),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(
         type='Normalize',
@@ -91,7 +96,7 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=24,
+    samples_per_gpu=28,
     workers_per_gpu=8,
     train=
         dict(
@@ -115,13 +120,13 @@ data = dict(
         pipeline=test_pipeline)
             )
 
-evaluation = dict(interval=2, metric='bbox')
+evaluation = dict(start=50, interval=2, metric='bbox')
 
-# optimizer = dict(type='AdamW', lr=0.001)
-# optimizer_config = dict(grad_clip=None)
+optimizer = dict(type='AdamW', lr=0.001)
+optimizer_config = dict(grad_clip=None)
 
-optimizer = dict(type='SGD', lr=base_lr, momentum=0.937, weight_decay=0.0001)
-optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
+# optimizer = dict(type='SGD', lr=base_lr, momentum=0.937, weight_decay=0.0001)
+# optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 
 lr_config = dict(
     policy='CosineAnnealing',
@@ -148,7 +153,7 @@ log_config = dict(
 device_ids = range(1)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = 'work_dirs/ttfnet_sandnet_sgd'
-load_from = None
+work_dir = 'work_dirs/ttfnet_sandnet_lite_head_sgd'
+load_from = 'work_dirs/ttfnet_sandnet_lite_head_sgd/latest.pth'
 resume_from = None
 workflow = [('train', 1)]
