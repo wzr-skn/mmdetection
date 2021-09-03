@@ -5,7 +5,6 @@ from mmcv.cnn import ConvModule
 import torch.nn.functional as F
 import torch
 from collections import OrderedDict
-from mmcv.cnn import build_activation_layer
 
 
 @CONV_LAYERS.register_module()
