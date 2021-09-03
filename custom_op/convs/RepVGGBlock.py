@@ -1,27 +1,31 @@
 import torch.nn as nn
 from mmcv.cnn import fuse_conv_bn
 from mmcv.cnn import ConvModule
-import torch.nn.functional as F
 from mmcv.cnn.bricks.registry import CONV_LAYERS
 import torch
 
 @CONV_LAYERS.register_module()
-class RepVGGBlock(nn.Module):
+class RepVGGConv(nn.Conv2d):
     def __init__(self,
-                 in_ch,
-                 out_ch,
+                 in_channels,
+                 out_channels,
                  kernel_size=3,
                  stride=1,
                  padding=0,
                  dilation=1,
                  groups=1,
-                 norm_cfg=dict(type='BN', requires_grad=True)):
-        super(RepVGGBlock, self).__init__()
+                 norm_cfg=dict(type='BN', requires_grad=True),
+                 bias=False):
+        super(RepVGGConv, self).__init__(in_channels, out_channels,
+                 kernel_size=kernel_size, stride=stride, padding=padding, dilation=1, groups=1, bias=bias)
+        self.weight = None
+        self.bias = None
+
         self.kernel_size = kernel_size
         self.norm_cfg = norm_cfg
-        self.in_ch = in_ch
-        self.out_ch = out_ch
-        self.conv_3x3 = ConvModule(in_ch, out_ch,
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.conv_3x3 = ConvModule(in_channels, out_channels,
                                    kernel_size=kernel_size,
                                    stride=stride,
                                    padding=kernel_size//2,
@@ -29,8 +33,8 @@ class RepVGGBlock(nn.Module):
                                    groups=1,
                                    act_cfg=None)
 
-        self.conv_1x1 = ConvModule(in_ch, out_ch, kernel_size=(1, 1), stride=stride, padding=(0, 0),
-                                       norm_cfg=norm_cfg, act_cfg=None)
+        self.conv_1x1 = ConvModule(in_channels, out_channels, kernel_size=(1, 1), stride=stride, padding=(0, 0),
+                                   norm_cfg=norm_cfg, act_cfg=None)
         self.stride = stride
         if self.stride == 1:
             self.ShortCut = nn.Identity()
@@ -64,9 +68,9 @@ class RepVGGBlock(nn.Module):
 
         self.conv_3x3.conv.bias = torch.nn.Parameter(self.conv_1x1.conv.bias + self.conv_3x3.conv.bias)
 
-        if self.stride == 1 and self.in_ch == self.out_ch:
-            short_cut_weight = torch.nn.Parameter(torch.eye(self.in_ch) \
-                                                  .reshape(self.in_ch, self.in_ch, 1, 1)).to(self.conv_3x3.conv.weight.device)
+        if self.stride == 1 and self.in_channels == self.out_channels:
+            short_cut_weight = torch.nn.Parameter(torch.eye(self.in_channels) \
+                                                  .reshape(self.in_channels, self.in_channels, 1, 1)).to(self.conv_3x3.conv.weight.device)
             self.conv_3x3.conv.weight[:,
                                       :,
                                       self.kernel_size // 2:self.kernel_size // 2 + 1,

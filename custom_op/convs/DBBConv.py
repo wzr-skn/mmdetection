@@ -9,22 +9,27 @@ from mmcv.cnn import build_activation_layer
 
 
 @CONV_LAYERS.register_module()
-class DBBBlock(nn.Module):
+class DBBConv(nn.Conv2d):
     def __init__(self,
-                 in_ch,
-                 out_ch,
+                 in_channels,
+                 out_channels,
                  kernel_size=3,
                  stride=1,
                  padding=0,
                  dilation=1,
                  groups=1,
-                 norm_cfg=dict(type='BN', requires_grad=True)):
-        super(DBBBlock, self).__init__()
+                 norm_cfg=dict(type='BN', requires_grad=True),
+                 bias=False):
+        super(DBBConv, self).__init__(in_channels, out_channels,
+                 kernel_size=kernel_size, stride=stride, padding=padding, dilation=1, groups=1, bias=bias)
+        self.weight = None
+        self.bias = None
+
         self.group = groups
         self.kernel_size = kernel_size
-        self.in_ch = in_ch
-        self.out_ch = out_ch
-        self.conv_kxk = ConvModule(in_ch, out_ch,
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.conv_kxk = ConvModule(in_channels, out_channels,
                                    kernel_size=kernel_size,
                                    stride=stride,
                                    padding=kernel_size//2,
@@ -33,8 +38,8 @@ class DBBBlock(nn.Module):
                                    act_cfg=None)
         kxk_1x1 = OrderedDict()
 
-        kxk_1x1["conv_1x1"] = ConvModule(in_ch,  out_ch, kernel_size=1, stride=1, norm_cfg=norm_cfg, groups=groups, act_cfg=None)
-        kxk_1x1["conv_kxk"] = ConvModule(out_ch, out_ch, kernel_size=kernel_size,
+        kxk_1x1["conv_1x1"] = ConvModule(in_channels,  out_channels, kernel_size=1, stride=1, norm_cfg=norm_cfg, groups=groups, act_cfg=None)
+        kxk_1x1["conv_kxk"] = ConvModule(out_channels, out_channels, kernel_size=kernel_size,
                                                         stride=stride,
                                                         padding=kernel_size//2,
                                                         norm_cfg=norm_cfg,
@@ -43,7 +48,7 @@ class DBBBlock(nn.Module):
         self.kxk_1x1 = nn.Sequential(kxk_1x1)
 
         conv_1x1_avg = OrderedDict()
-        conv_1x1_avg["conv_1x1"] = ConvModule(out_ch, out_ch, kernel_size=1,
+        conv_1x1_avg["conv_1x1"] = ConvModule(in_channels, out_channels, kernel_size=1,
                                                               stride=1,
                                                               norm_cfg=norm_cfg,
                                                               groups=groups,
@@ -52,7 +57,7 @@ class DBBBlock(nn.Module):
         self.conv_1x1_avg = nn.Sequential(conv_1x1_avg)
 
 
-        self.conv_1x1 = ConvModule(in_ch, out_ch, kernel_size=(1, 1), stride=stride, padding=(0, 0),
+        self.conv_1x1 = ConvModule(in_channels, out_channels, kernel_size=(1, 1), stride=stride, padding=(0, 0),
                                        norm_cfg=norm_cfg, act_cfg=None, groups=groups)
         self.stride = stride
 
@@ -102,7 +107,7 @@ class DBBBlock(nn.Module):
 
 
         avg_pooling_weight = nn.Parameter(torch.ones_like(self.conv_kxk.conv.weight) / self.kernel_size**2)
-        avg_pooling_mask_ = torch.eye(self.in_ch //self.group).reshape(self.in_ch // self.group, self.in_ch // self.group, 1, 1).to(self.conv_kxk.conv.weight.device)
+        avg_pooling_mask_ = torch.eye(self.in_channels //self.group).reshape(self.in_channels // self.group, self.in_channels // self.group, 1, 1).to(self.conv_kxk.conv.weight.device)
         avg_pooling_mask = torch.cat([avg_pooling_mask_ for _ in range(self.group)])
 
         avg_pooling_weight = avg_pooling_mask * avg_pooling_weight

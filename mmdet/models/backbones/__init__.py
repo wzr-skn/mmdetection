@@ -16,6 +16,7 @@ from .ssd_vgg import SSDVGG
 from .swin import SwinTransformer
 from .trident_resnet import TridentResNet
 from .sandnet import SandNet
+from .vggnet import VGGNet
 
 
 __all__ = [

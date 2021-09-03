@@ -13,6 +13,7 @@ model = dict(
         stage_channels=(32, 64, 96, 128),
         block_per_stage=(1, 3, 6, 8, 6, 6),
         kernel_size=[3, 3, 3, 3],
+        conv_cfg=dict(type="RepVGGConv"),
         num_out=4,
     ),
 
