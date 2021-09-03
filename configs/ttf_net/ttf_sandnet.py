@@ -2,8 +2,8 @@
 dataset_type = 'CocoDataset'
 data_root = '/usr/videodate/yehc/'
 
-base_lr = 0.01
-warmup_iters = 500
+base_lr = 1e-2
+warmup_iters = 1000
 
 model = dict(
     type='TTFNet',
@@ -34,7 +34,7 @@ model = dict(
         wh_offset_base=16,
         wh_agnostic=True,
         wh_gaussian=True,
-        norm_cfg=dict(type='SyncBN'),
+        norm_cfg=dict(type='BN'),
         alpha=0.54,
         hm_weight=1.,
         wh_weight=5.,
@@ -55,10 +55,6 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='LoadImageFromFile', to_float32=True),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(
-        type='MinIoURandomCrop',
-        min_ious=(0.6, 0.7, 0.8, 0.9),
-        min_crop_size=0.3),
     dict(
         type='Resize',
         img_scale=[(512, 512)],
@@ -95,8 +91,8 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=16,
-    workers_per_gpu=4,
+    samples_per_gpu=24,
+    workers_per_gpu=8,
     train=
         dict(
         type=dataset_type,
@@ -122,11 +118,10 @@ data = dict(
 evaluation = dict(interval=2, metric='bbox')
 
 # optimizer = dict(type='AdamW', lr=0.001)
-# optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
+# optimizer_config = dict(grad_clip=None)
 
-optimizer = dict(type='SGD', lr=base_lr, momentum=0.937, weight_decay=0.0005)
-optimizer_config = dict(grad_clip=None)
-
+optimizer = dict(type='SGD', lr=base_lr, momentum=0.937, weight_decay=0.0001)
+optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 
 lr_config = dict(
     policy='CosineAnnealing',
@@ -134,7 +129,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=warmup_iters,
     warmup_ratio=0.001)
-total_epochs = 300
+total_epochs = 120
 
 checkpoint_config = dict(interval=2)
 
@@ -153,7 +148,7 @@ log_config = dict(
 device_ids = range(1)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = 'work_dirs/ttfnet_sandnet'
+work_dir = 'work_dirs/ttfnet_sandnet_sgd'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

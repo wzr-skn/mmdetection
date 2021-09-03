@@ -1,3 +1,4 @@
+# Copyright (c) OpenMMLab. All rights reserved.
 import torch
 
 from mmdet.core import bbox2result
@@ -112,5 +113,4 @@ class CenterNet(SingleStageDetector):
     def forward_dummy(self, img):
         hm, wh, off = super().forward_dummy(img)
         hm_maxpool = F.max_pool2d(hm[0], 3, stride=1, padding=1)
-
         return hm, hm_maxpool, wh, off

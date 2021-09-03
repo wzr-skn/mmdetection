@@ -123,8 +123,8 @@ evaluation = dict(interval=2, metric='bbox')
 
 optimizer = dict(type='AdamW', lr=0.001)
 # optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
-#
-# optimizer = dict(type='SGD', lr=base_lr, momentum=0.937, weight_decay=0.0005)
+
+optimizer = dict(type='SGD', lr=base_lr, momentum=0.937, weight_decay=0.0005)
 optimizer_config = dict(grad_clip=None)
 
 

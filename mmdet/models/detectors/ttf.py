@@ -1,6 +1,5 @@
 from .single_stage import SingleStageDetector
 from ..builder import DETECTORS
-import torch.nn.functional as F
 @DETECTORS.register_module()
 class TTFNet(SingleStageDetector):
 
@@ -15,8 +14,7 @@ class TTFNet(SingleStageDetector):
                                      test_cfg, pretrained)
 
     def forward_dummy(self, img):
-        hm, wh, off = super().forward_dummy(img)
-        hm = F.sigmoid(hm)
-        hm_maxpool = F.max_pool2d(hm, kernel=3, stride=1, padding=1)
+        hm, wh = super().forward_dummy(img)
+        import torch.nn.functional as F
+        return F.sigmoid(hm), wh
 
-        return hm, hm_maxpool, wh, off

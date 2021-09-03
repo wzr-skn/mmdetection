@@ -24,7 +24,7 @@ class SandBottleNeck(nn.Module):
         conv_dict["dw1"] = custom_conv(in_channels, in_channels, stride=stride, kernel_size=kernel_size,
                                        groups=in_channels, act_cfg=act_cfg, norm_cfg=norm_cfg)
         conv_dict["pw1"] = ConvModule(in_channels, out_channels=mid_channels, kernel_size=1, stride=1,
-                                      act_cfg=act_cfg, norm_cfg=norm_cfg)
+                                      act_cfg=None, norm_cfg=norm_cfg)
         conv_dict["pw2"] = ConvModule(mid_channels, out_channels=expansion_channels, kernel_size=1, stride=1,
                                       act_cfg=act_cfg, norm_cfg=norm_cfg)
         conv_dict["dw2"] = custom_conv(expansion_channels, expansion_channels, stride=1, kernel_size=kernel_size,

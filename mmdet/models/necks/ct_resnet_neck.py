@@ -1,3 +1,4 @@
+# Copyright (c) OpenMMLab. All rights reserved.
 import math
 
 import torch.nn as nn
@@ -25,27 +26,45 @@ class CTResNetNeck(BaseModule):
                  num_deconv_filters,
                  num_deconv_kernels,
                  use_dcn=True,
-                 init_cfg=None):
+                 init_cfg=None,
+                 groups=[]):
         super(CTResNetNeck, self).__init__(init_cfg)
         assert len(num_deconv_filters) == len(num_deconv_kernels)
         self.fp16_enabled = False
         self.use_dcn = use_dcn
         self.in_channel = in_channel
+        if not groups:
+            self.groups = [1 for _ in num_deconv_filters]
+        else:
+            self.groups = groups
+
         self.deconv_layers = self._make_deconv_layer(num_deconv_filters,
                                                      num_deconv_kernels)
+
+
 
     def _make_deconv_layer(self, num_deconv_filters, num_deconv_kernels):
         """use deconv layers to upsample backbone's output."""
         layers = []
         for i in range(len(num_deconv_filters)):
             feat_channel = num_deconv_filters[i]
-            conv_module = ConvModule(
+            conv_module = nn.Sequential(
+                ConvModule(
                 self.in_channel,
-                feat_channel,
+                self.in_channel,
                 3,
                 padding=1,
+                groups=self.groups[i],
                 conv_cfg=dict(type='DCNv2') if self.use_dcn else None,
-                norm_cfg=dict(type='BN'))
+                norm_cfg=dict(type='BN')),
+                ConvModule(
+                self.in_channel,
+                feat_channel,
+                1,
+                padding=0,
+                conv_cfg=dict(type='DCNv2') if self.use_dcn else None,
+                norm_cfg=dict(type='BN')))
+
             layers.append(conv_module)
             upsample_module = ConvModule(
                 feat_channel,

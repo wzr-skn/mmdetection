@@ -53,7 +53,10 @@ class DBBBlock(nn.Module):
 
         self.conv = nn.ModuleList([self.conv_kxk, self.kxk_1x1, self.conv_1x1_avg, self.conv_1x1])
 
-        self.act = build_activation_layer(act_cfg)
+        if act_cfg:
+            self.act = build_activation_layer(act_cfg)
+        else:
+            self.act = nn.Identity()
         self.init_weight()
 
     def init_weight(self):

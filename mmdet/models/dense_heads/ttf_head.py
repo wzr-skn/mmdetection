@@ -41,6 +41,7 @@ class TTFHead(AnchorHead):
                  hm_weight=1.,
                  wh_weight=5.,
                  max_objs=128,
+                 conv_type="normal",
                  train_cfg=None,
                  test_cfg=None):
         super(AnchorHead, self).__init__()
@@ -86,8 +87,12 @@ class TTFHead(AnchorHead):
                 kernel_size=shortcut_kernel, padding=padding)
 
         # heads
-        self.wh = self.build_head(self.wh_planes, wh_head_conv_num, wh_conv)
-        self.hm = self.build_head(self.num_fg, hm_head_conv_num)
+        if conv_type == "normal":
+            self.wh = self.build_head(self.wh_planes, wh_head_conv_num, wh_conv)
+            self.hm = self.build_head(self.num_fg, hm_head_conv_num)
+        else:
+            self.wh = self.build_lite_head(self.wh_planes, wh_head_conv_num, wh_conv)
+            self.hm = self.build_lite_head(self.num_fg, hm_head_conv_num)
 
     def _init_layers(self):
         pass
@@ -131,6 +136,18 @@ class TTFHead(AnchorHead):
         for i in range(conv_num):
             inp = self.planes[-1] if i == 0 else head_conv_plane
             head_convs.append(ConvModule(inp, head_conv_plane, 3, padding=1))
+
+        inp = self.planes[-1] if conv_num <= 0 else head_conv_plane
+        head_convs.append(nn.Conv2d(inp, out_channel, 1))
+        return nn.Sequential(*head_convs)
+
+    def build_lite_head(self, out_channel, conv_num=1, head_conv_plane=None):
+        head_convs = []
+        head_conv_plane = self.head_conv if not head_conv_plane else head_conv_plane
+        for i in range(conv_num):
+            inp = self.planes[-1] if i == 0 else head_conv_plane
+            head_convs.append(ConvModule(inp, head_conv_plane, 3, padding=1, groups=inp))
+            head_convs.append(ConvModule(head_conv_plane, head_conv_plane, 1))
 
         inp = self.planes[-1] if conv_num <= 0 else head_conv_plane
         head_convs.append(nn.Conv2d(inp, out_channel, 1))
