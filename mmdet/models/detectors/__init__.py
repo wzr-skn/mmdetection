@@ -19,6 +19,8 @@ from .mask_rcnn import MaskRCNN
 from .mask_scoring_rcnn import MaskScoringRCNN
 from .nasfcos import NASFCOS
 from .paa import PAA
+from .panoptic_fpn import PanopticFPN
+from .panoptic_two_stage_segmentor import TwoStagePanopticSegmentor
 from .point_rend import PointRend
 from .reppoints_detector import RepPointsDetector
 from .retinanet import RetinaNet
@@ -33,6 +35,7 @@ from .yolact import YOLACT
 from .yolo import YOLOV3
 from .yolof import YOLOF
 from .ttf import TTFNet
+from .yolox import YOLOX
 
 __all__ = [
     'ATSS', 'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN',
@@ -42,4 +45,5 @@ __all__ = [
     'NASFCOS', 'PointRend', 'GFL', 'CornerNet', 'PAA', 'YOLOV3', 'YOLACT',
     'VFNet', 'DETR', 'TridentFasterRCNN', 'SparseRCNN', 'SCNet',
     'DeformableDETR', 'AutoAssign', 'YOLOF', 'CenterNet', 'TTFNet'
+    'YOLOX', 'TwoStagePanopticSegmentor', 'PanopticFPN'
 ]
