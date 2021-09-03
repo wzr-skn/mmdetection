@@ -7,7 +7,7 @@ import torch
 
 @CUSTOM_CONV_OP.register_module()
 class RepVGGBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, kernel_size=3, stride=1, group=1, norm_cfg=dict(type='BN', requires_grad=True)):
+    def __init__(self, in_ch, out_ch, kernel_size=3, stride=1, groups=1, norm_cfg=dict(type='BN', requires_grad=True)):
         super(RepVGGBlock, self).__init__()
         self.kernel_size = kernel_size
         self.norm_cfg = norm_cfg

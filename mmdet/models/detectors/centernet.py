@@ -4,7 +4,7 @@ from mmdet.core import bbox2result
 from mmdet.models.builder import DETECTORS
 from ...core.utils import flip_tensor
 from .single_stage import SingleStageDetector
-
+import torch.nn.functional as F
 
 @DETECTORS.register_module()
 class CenterNet(SingleStageDetector):
@@ -108,3 +108,9 @@ class CenterNet(SingleStageDetector):
             for det_bboxes, det_labels in bbox_list
         ]
         return bbox_results
+
+    def forward_dummy(self, img):
+        hm, wh, off = super().forward_dummy(img)
+        hm_maxpool = F.max_pool2d(hm[0], 3, stride=1, padding=1)
+
+        return hm, hm_maxpool, wh, off

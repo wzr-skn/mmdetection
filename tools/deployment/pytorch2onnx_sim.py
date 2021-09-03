@@ -60,13 +60,13 @@ def parse_args():
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument('--output-file', type=str, default='tmp.onnx')
     parser.add_argument('--opset-version', type=int, default=11)
-    parser.add_argument('--output-names', type=str, nargs='+', default=["score", "bbox"],help='output names of network')
+    parser.add_argument('--output-names', type=str, nargs='+', default=["score", "bboxes"],help='output names of network')
     parser.add_argument('--input-names', type=str, nargs='+', default=["data"], help='input names of network')
     parser.add_argument(
         '--shape',
         type=int,
         nargs='+',
-        default=[800, 1216],
+        default=[1, 3, 224, 224],
         help='input image size')
     parser.add_argument(
         '--cfg-options',
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     cfg.model.train_cfg = None
     model = build_detector(cfg.model)
     model.eval()
-    recursive_fuse_conv(model)
+
     try:
         checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
 
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         res = input("checkpoint doesn't exist, still export onnx with random init model? yes/no:")
         if res == "yes" or "y":
             pass
-
+    recursive_fuse_conv(model)
     input_shape = args.shape
     # convert model to onnx file
     pytorch2onnx(

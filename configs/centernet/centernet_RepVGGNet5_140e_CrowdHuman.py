@@ -6,7 +6,7 @@ base_lr = 0.01
 warmup_iters = 500
 
 model = dict(
-    type='YOLOF',
+    type='CenterNet',
     backbone=dict(
         type='RepVGGNet',
         stem_channels=32,
@@ -14,50 +14,25 @@ model = dict(
         block_per_stage=(1, 3, 6, 8),
         kernel_size=[3, 3, 3, 3],
         num_out=1,
+        # conv_type="DBBBlock"
     ),
 
     neck=dict(
-        type='DilatedEncoder',
-        in_channels=128,
-        out_channels=32,
-        block_mid_channels=8,
-        num_residual_blocks=4),
+        type='CTResNetNeck',
+        in_channel=128,
+        num_deconv_filters=(64, 32, 16),
+        num_deconv_kernels=(4, 4, 4),
+        use_dcn=False),
     bbox_head=dict(
-        type='YOLOFHead',
+        type='CenterNetHead',
         num_classes=1,
-        in_channels=32,
-        reg_decoded_bbox=True,
-        anchor_generator=dict(
-            type='AnchorGenerator',
-            ratios=[1.0],
-            scales=[1, 2, 4, 8, 16],
-            strides=[32]),
-        bbox_coder=dict(
-            type='DeltaXYWHBBoxCoder',
-            target_means=[.0, .0, .0, .0],
-            target_stds=[1., 1., 1., 1.],
-            add_ctr_clamp=True,
-            ctr_clamp=32),
-        loss_cls=dict(
-            type='FocalLoss',
-            use_sigmoid=True,
-            gamma=2.0,
-            alpha=0.25,
-            loss_weight=1.0),
-        loss_bbox=dict(type='GIoULoss', loss_weight=1.0)),
-    # training and testing settings
-    train_cfg=dict(
-        assigner=dict(
-            type='UniformAssigner', pos_ignore_thr=0.15, neg_ignore_thr=0.7),
-        allowed_border=-1,
-        pos_weight=-1,
-        debug=False),
-    test_cfg=dict(
-        nms_pre=1000,
-        min_bbox_size=0,
-        score_thr=0.05,
-        nms=dict(type='nms', iou_threshold=0.6),
-        max_per_img=100))
+        in_channel=16,
+        feat_channel=16,
+        loss_center_heatmap=dict(type='GaussianFocalLoss', loss_weight=1.0),
+        loss_wh=dict(type='SmoothL1Loss', loss_weight=0.2),
+        loss_offset=dict(type='SmoothL1Loss', loss_weight=2.0)),
+    train_cfg=None,
+    test_cfg=dict(topk=100, local_maximum_kernel=3, max_per_img=100))
 cudnn_benchmark = True
 # dataset settings
 
@@ -67,14 +42,14 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='LoadImageFromFile', to_float32=True),
     dict(type='LoadAnnotations', with_bbox=True),
-    # dict(
-    #     type='RandomCenterCropPad',
-    #     crop_size=(320, 320),
-    #     ratios=(0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3),
-    #     mean=[0, 0, 0],
-    #     std=[1, 1, 1],
-    #     to_rgb=True,
-    #     test_pad_mode=None),
+    dict(
+        type='RandomCenterCropPad',
+        crop_size=(320, 320),
+        ratios=(0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3),
+        mean=[0, 0, 0],
+        std=[1, 1, 1],
+        to_rgb=True,
+        test_pad_mode=None),
     dict(
         type='Resize',
         img_scale=[(320, 320)],
@@ -92,22 +67,35 @@ train_pipeline = [
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'])
 ]
 test_pipeline = [
-    dict(type='LoadImageFromFile'),
+    dict(type='LoadImageFromFile', to_float32=True),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(320, 320),
+        scale_factor=1.0,
         flip=False,
         transforms=[
-            dict(type='Resize', keep_ratio=False),
+            dict(type='Resize', keep_ratio=True),
+            dict(
+                type='RandomCenterCropPad',
+                ratios=None,
+                border=None,
+                mean=[0, 0, 0],
+                std=[1, 1, 1],
+                to_rgb=True,
+                test_mode=True,
+                test_pad_mode=['logical_or', 31],
+                test_pad_add_pix=1),
             dict(type='RandomFlip'),
             dict(
                 type='Normalize',
                 mean=[127.5, 127.5, 127.5],
                 std=[128, 128, 128],
                 to_rgb=True),
-            dict(type='Pad', size_divisor=32),
-            dict(type='ImageToTensor', keys=['img']),
-            dict(type='Collect', keys=['img'])
+            dict(type='DefaultFormatBundle'),
+            dict(type='Collect',
+                 meta_keys=('filename', 'ori_shape', 'img_shape', 'pad_shape',
+                           'scale_factor', 'flip', 'flip_direction',
+                           'img_norm_cfg', 'border'),
+                 keys=['img'])
         ])
 ]
 data = dict(
@@ -169,7 +157,7 @@ log_config = dict(
 device_ids = range(1)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = '../work_dirs/YOLOF_RepVGG_da_modification'
+work_dir = './work_dirs/CenterNet_RepVGG_smoothl1loss_2'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

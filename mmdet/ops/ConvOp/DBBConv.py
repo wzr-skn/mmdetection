@@ -28,8 +28,8 @@ class DBBBlock(nn.Module):
                                    act_cfg=None)
         kxk_1x1 = OrderedDict()
 
-        kxk_1x1["conv_1x1"] = ConvModule(out_ch, out_ch, kernel_size=1, stride=1, norm_cfg=norm_cfg, groups=groups, act_cfg=None)
-        kxk_1x1["conv_kxk"] = ConvModule(in_ch, out_ch, kernel_size=kernel_size,
+        kxk_1x1["conv_1x1"] = ConvModule(in_ch,  out_ch, kernel_size=1, stride=1, norm_cfg=norm_cfg, groups=groups, act_cfg=None)
+        kxk_1x1["conv_kxk"] = ConvModule(out_ch, out_ch, kernel_size=kernel_size,
                                                         stride=stride,
                                                         padding=kernel_size//2,
                                                         norm_cfg=norm_cfg,
@@ -38,7 +38,7 @@ class DBBBlock(nn.Module):
         self.kxk_1x1 = nn.Sequential(kxk_1x1)
 
         conv_1x1_avg = OrderedDict()
-        conv_1x1_avg["conv_1x1"] = ConvModule(out_ch, out_ch, kernel_size=1,
+        conv_1x1_avg["conv_1x1"] = ConvModule(in_ch, out_ch, kernel_size=1,
                                                               stride=1,
                                                               norm_cfg=norm_cfg,
                                                               groups=groups,

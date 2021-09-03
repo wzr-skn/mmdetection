@@ -20,8 +20,8 @@ model = dict(
         type='FuseFPN',
         in_channels=[32, 64, 96, 128],
         out_channels=64,
-        conv_cfg=dict(type="NormalConv",
-                      info={"norm_cfg": None})),
+        conv_type="NormalConv",
+        norm_cfg=None),
     bbox_head=dict(
         type='TTFHead',
         planes=(64, 64, 64),
@@ -34,7 +34,7 @@ model = dict(
         wh_offset_base=16,
         wh_agnostic=True,
         wh_gaussian=True,
-        norm_cfg=dict(type='SyncBN'),
+        norm_cfg=dict(type='BN'),
         alpha=0.54,
         hm_weight=1.,
         wh_weight=5.,
@@ -153,7 +153,7 @@ log_config = dict(
 device_ids = range(1)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = 'work_dirs/ttfnet_RepVGG_eiou'
+work_dir = '../work_dirs/ttfnet_RepVGG'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

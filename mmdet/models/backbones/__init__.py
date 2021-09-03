@@ -14,10 +14,11 @@ from .resnext import ResNeXt
 from .ssd_vgg import SSDVGG
 from .trident_resnet import TridentResNet
 from .sandnet import SandNet
+from .DBB_VGG import DBB_VGGNet
 
 __all__ = [
     'RegNet', 'ResNet', 'ResNetV1d', 'ResNeXt', 'SSDVGG', 'HRNet',
     'MobileNetV2', 'Res2Net', 'HourglassNet', 'DetectoRS_ResNet',
     'DetectoRS_ResNeXt', 'Darknet', 'ResNeSt', 'TridentResNet',
-    'CSPDarknet', 'RepVGGNet', 'SandNet'
+    'CSPDarknet', 'RepVGGNet', 'SandNet', 'DBB_VGGNet'
 ]

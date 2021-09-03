@@ -6,18 +6,18 @@ import os
 from collections import OrderedDict
 from mmdet.ops.build import build_op
 
-CONV_TYPE = build_op("RepVGGBlock")
 
 class RepVGGStage(nn.Module):
-    def __init__(self, in_ch, stage_ch, num_block, kernel_size=3, group=1):
+    def __init__(self, in_ch, stage_ch, num_block, kernel_size=3, groups=1, conv_type="RepVGGBlock"):
         super(RepVGGStage, self).__init__()
         LayerDict = OrderedDict()
+        CONV_TYPE = build_op(conv_type)
 
         for num in range(num_block):
             if num == 0:
-                LayerDict["Block{}".format(num)] = CONV_TYPE(in_ch, stage_ch, group=group, kernel_size=kernel_size, stride=2)
+                LayerDict["Block{}".format(num)] = CONV_TYPE(in_ch, stage_ch, groups=groups, kernel_size=kernel_size, stride=2)
                 continue
-            LayerDict["Block{}".format(num)] = CONV_TYPE(stage_ch, stage_ch, group=group, kernel_size=kernel_size, stride=1)
+            LayerDict["Block{}".format(num)] = CONV_TYPE(stage_ch, stage_ch, groups=groups, kernel_size=kernel_size, stride=1)
         self.Block = nn.Sequential(LayerDict)
 
     def forward(self, x):
@@ -33,7 +33,8 @@ class RepVGGNet(nn.Module):
                  block_per_stage,
                  kernel_size=3,
                  num_out=5,
-                 norm_cfg=dict(type='BN', requires_grad=True)
+                 norm_cfg=dict(type='BN', requires_grad=True),
+                 conv_type = "RepVGGBlock"
                  ):
         super(RepVGGNet, self).__init__()
         if isinstance(kernel_size, int):
@@ -58,7 +59,8 @@ class RepVGGNet(nn.Module):
             stage = RepVGGStage(in_channel, stage_channels[num_stages],
                                             block_per_stage[num_stages],
                                             kernel_size=kernel_sizes[num_stages],
-                                            group=1)
+                                            groups=1,
+                                            conv_type=conv_type)
             in_channel = stage_channels[num_stages]
             self.stages.append(stage)
 

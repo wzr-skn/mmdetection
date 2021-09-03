@@ -70,7 +70,6 @@ class FuseFPN(nn.Module):
 
         # build outputs
         # part 1: from original levels
-
         return tuple([laterals[0]])
 
     def init_weights(self):
