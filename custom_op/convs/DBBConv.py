@@ -1,22 +1,27 @@
 import torch.nn as nn
 from mmcv.cnn import fuse_conv_bn
+from mmcv.cnn.bricks.registry import CONV_LAYERS
 from mmcv.cnn import ConvModule
 import torch.nn.functional as F
-from ..build import CUSTOM_CONV_OP
 import torch
 from collections import OrderedDict
 from mmcv.cnn import build_activation_layer
 
 
-@CUSTOM_CONV_OP.register_module()
+@CONV_LAYERS.register_module()
 class DBBBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, kernel_size=3, stride=1, groups=1,
-                 norm_cfg=dict(type='BN', requires_grad=True),
-                 act_cfg=dict(type='ReLU')):
+    def __init__(self,
+                 in_ch,
+                 out_ch,
+                 kernel_size=3,
+                 stride=1,
+                 padding=0,
+                 dilation=1,
+                 groups=1,
+                 norm_cfg=dict(type='BN', requires_grad=True)):
         super(DBBBlock, self).__init__()
         self.group = groups
         self.kernel_size = kernel_size
-        self.norm_cfg = norm_cfg
         self.in_ch = in_ch
         self.out_ch = out_ch
         self.conv_kxk = ConvModule(in_ch, out_ch,
@@ -53,10 +58,6 @@ class DBBBlock(nn.Module):
 
         self.conv = nn.ModuleList([self.conv_kxk, self.kxk_1x1, self.conv_1x1_avg, self.conv_1x1])
 
-        if act_cfg:
-            self.act = build_activation_layer(act_cfg)
-        else:
-            self.act = nn.Identity()
         self.init_weight()
 
     def init_weight(self):
@@ -119,5 +120,4 @@ class DBBBlock(nn.Module):
         res = out[0]
         for i in range(1, len(out)):
             res += out[i]
-        res = self.act(res)
         return res

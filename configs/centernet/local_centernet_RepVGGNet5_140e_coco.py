@@ -1,27 +1,29 @@
-_base_ = [
-    '../_base_/datasets/local_coco_detection.py',
-    '../_base_/schedules/schedule_1x.py', '../_base_/default_runtime.py'
-]
+base_lr = 1e-2
+warmup_iters = 1000
 
 model = dict(
     type='CenterNet',
     backbone=dict(
-        type='RepVGGNet',
-        stem_channels=6,
-        stage_channels=[32, 128, 256, 512],
-        block_per_stage=[1, 1, 1, 1],
-        num_out=1,
-        norm_cfg=dict(type='BN')),
+        type='SandNet',
+        stem_channels=32,
+        stage_channels=(32, 36, 42, 48),
+        block_per_stage=(1, 3, 6, 3),
+        expansion=[1, 2, 4, 4],
+        kernel_size=[3, 3, 3, 3],
+        num_out=4,
+    ),
     neck=dict(
         type='CTResNetNeck',
-        in_channel=512,
-        num_deconv_filters=(256, 128, 32),
+        in_channel=192,
+        num_deconv_filters=(96, 64, 32),
         num_deconv_kernels=(4, 4, 4),
+        groups=[192, 96, 64],
         use_dcn=False),
     bbox_head=dict(
         type='CenterNetHead',
-        num_classes=80,
+        num_classes=1,
         in_channel=32,
+        groups=32,
         feat_channel=32,
         loss_center_heatmap=dict(type='GaussianFocalLoss', loss_weight=1.0),
         loss_wh=dict(type='L1Loss', loss_weight=0.1),
@@ -31,7 +33,7 @@ model = dict(
 
 # We fixed the incorrect img_norm_cfg problem in the source code.
 img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+    mean=[127.5, 127.5, 127.5], std=[128, 128, 128], to_rgb=True)
 
 train_pipeline = [
     dict(type='LoadImageFromFile', to_float32=True, color_type='color'),
@@ -87,37 +89,71 @@ test_pipeline = [
 ]
 
 dataset_type = 'CocoDataset'
-data_root = '/media/traindata_ro/users/yl3076/coco/'
+data_root = '/usr/videodate/yehc/'
 
 # Use RepeatDataset to speed up training
 data = dict(
-    samples_per_gpu=16,
-    workers_per_gpu=4,
-    train=dict(
-        _delete_=True,
-        type='RepeatDataset',
-        times=5,
-        dataset=dict(
-            type=dataset_type,
-            ann_file=data_root + 'annotations/instances_train2017.json',
-            img_prefix=data_root + 'train2017/images',
-            pipeline=train_pipeline)),
-    val=dict(pipeline=test_pipeline),
-    test=dict(pipeline=test_pipeline))
+    samples_per_gpu=24,
+    workers_per_gpu=8,
+    train=
+        dict(
+        type=dataset_type,
+        ann_file=data_root+'ImageDataSets/OpenImageV6_CrowdHuman/OpenImageCrowdHuman_train.json',
+        img_prefix=data_root+'ImageDataSets/OpenImageV6_CrowdHuman/WIDER_train/images',
+        classes=["person"],
+        pipeline=train_pipeline),
 
+    val=dict(
+        type=dataset_type,
+        ann_file=data_root + '/hollywoodheads/hollywoodhead_val.json',
+        img_prefix=data_root + '/hollywoodheads/JPEGImages/',
+        classes=["person"],
+        pipeline=test_pipeline),
+
+    test=dict(
+        type=dataset_type,
+        ann_file=data_root + '/hollywoodheads/hollywoodhead_val.json',
+        img_prefix=data_root + '/hollywoodheads/JPEGImages/',
+        pipeline=test_pipeline)
+            )
 # optimizer
 # Based on the default settings of modern detectors, the SGD effect is better
 # than the Adam in the source code, so we use SGD default settings and
 # if you use adam+lr5e-4, the map is 29.1.
-optimizer_config = dict(
-    _delete_=True, grad_clip=dict(max_norm=35, norm_type=2))
+evaluation = dict(start=20, interval=2, metric='bbox')
 
-# learning policy
-# Based on the default settings of modern detectors, we added warmup settings.
+optimizer = dict(type='AdamW', lr=0.001)
+optimizer_config = dict(grad_clip=None)
+
+# optimizer = dict(type='SGD', lr=base_lr, momentum=0.937, weight_decay=0.0001)
+# optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
+
 lr_config = dict(
-    policy='step',
+    policy='CosineAnnealing',
+    min_lr=base_lr/1000,
     warmup='linear',
-    warmup_iters=1000,
-    warmup_ratio=1.0 / 1000,
-    step=[18, 24])  # the real step is [18*5, 24*5]
-runner = dict(max_epochs=28)  # the real epoch is 28*5=140
+    warmup_iters=warmup_iters,
+    warmup_ratio=0.001)
+total_epochs = 120
+
+checkpoint_config = dict(interval=2)
+
+
+log_config = dict(
+    interval=20,
+    hooks=[
+        dict(type='TextLoggerHook'),
+        dict(type='TensorboardLoggerHook')
+    ])
+
+# yapf:enable
+# runtime settings
+
+
+device_ids = range(1)
+dist_params = dict(backend='nccl')
+log_level = 'INFO'
+work_dir = 'tools/work_dirs/centernet_sandnet_lite_fintune'
+load_from = None
+resume_from = None
+workflow = [('train', 1)]

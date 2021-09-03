@@ -20,8 +20,7 @@ model = dict(
         type='FuseFPN',
         in_channels=[32, 64, 96, 128],
         out_channels=64,
-        conv_cfg=dict(type="NormalConv",
-                      info={"norm_cfg": None})),
+        conv_type="NormalConv",),
     bbox_head=dict(
         type='TTFHead',
         planes=(64, 64, 64),
