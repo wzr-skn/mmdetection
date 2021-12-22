@@ -132,6 +132,7 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + '/hollywoodheads/hollywoodhead_val.json',
         img_prefix=data_root + '/hollywoodheads/JPEGImages/',
+        # samples_per_gpu=9,
         pipeline=test_pipeline)
             )
 

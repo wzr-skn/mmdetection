@@ -7,8 +7,10 @@ import torch
 
 @CUSTOM_CONV_OP.register_module()
 class RepVGGBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, kernel_size=3, stride=1, groups=1, norm_cfg=dict(type='BN', requires_grad=True)):
+    def __init__(self, in_ch, out_ch, kernel_size=3, stride=1, groups=1, norm_cfg=dict(type='BN', requires_grad=True), act_cfg=dict(type='ReLU')):
         super(RepVGGBlock, self).__init__()
+        assert groups == 1 or groups == in_ch, "current only support groups=1 or in_channel"
+        self.depth_wise = groups == in_ch
         self.kernel_size = kernel_size
         self.norm_cfg = norm_cfg
         self.in_ch = in_ch
@@ -18,11 +20,11 @@ class RepVGGBlock(nn.Module):
                                    stride=stride,
                                    padding=kernel_size//2,
                                    norm_cfg=norm_cfg,
-                                   groups=1,
+                                   groups=groups,
                                    act_cfg=None)
 
         self.conv_1x1 = ConvModule(in_ch, out_ch, kernel_size=(1, 1), stride=stride, padding=(0, 0),
-                                       norm_cfg=norm_cfg, act_cfg=None)
+                                       norm_cfg=norm_cfg, groups=groups, act_cfg=None)
         self.stride = stride
         if self.stride == 1:
             self.ShortCut = nn.Identity()
@@ -32,9 +34,9 @@ class RepVGGBlock(nn.Module):
             self.conv = nn.ModuleList([self.conv_3x3, self.conv_1x1])
 
 
-        self.init_weight()
+        self.init_weights()
 
-    def init_weight(self):
+    def init_weights(self):
         def ini(module):
             for name, child in module.named_children():
                 if isinstance(child, (nn.modules.batchnorm._BatchNorm, nn.SyncBatchNorm)):
@@ -57,8 +59,11 @@ class RepVGGBlock(nn.Module):
         self.conv_3x3.conv.bias = torch.nn.Parameter(self.conv_1x1.conv.bias + self.conv_3x3.conv.bias)
 
         if self.stride == 1 and self.in_ch == self.out_ch:
-            short_cut_weight = torch.nn.Parameter(torch.eye(self.in_ch) \
+            if not self.depth_wise:
+                short_cut_weight = torch.nn.Parameter(torch.eye(self.in_ch) \
                                                   .reshape(self.in_ch, self.in_ch, 1, 1)).to(self.conv_3x3.conv.weight.device)
+            else:
+                short_cut_weight = torch.nn.Parameter(torch.ones_like(self.conv_1x1.conv.weight))
             self.conv_3x3.conv.weight[:,
                                       :,
                                       self.kernel_size // 2:self.kernel_size // 2 + 1,

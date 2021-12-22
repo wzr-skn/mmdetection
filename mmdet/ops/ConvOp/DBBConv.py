@@ -57,9 +57,9 @@ class DBBBlock(nn.Module):
             self.act = build_activation_layer(act_cfg)
         else:
             self.act = nn.Identity()
-        self.init_weight()
+        self.init_weights()
 
-    def init_weight(self):
+    def init_weights(self):
         def ini(module):
             for name, child in module.named_children():
                 if isinstance(child, (nn.modules.batchnorm._BatchNorm, nn.SyncBatchNorm)):

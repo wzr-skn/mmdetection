@@ -128,15 +128,41 @@ class YOLOFHead(AnchorHead):
         # implicit objectness
         objectness = objectness.view(N, -1, 1, H, W)
         normalized_cls_score = cls_score + objectness - torch.log(
-            1. + torch.clamp(cls_score.exp(), max=INF) +
-            torch.clamp(objectness.exp(), max=INF))
+            1. + cls_score.exp() +
+            objectness.exp())
+        # normalized_cls_score = cls_score + objectness - torch.log(
+        #     1. + torch.clamp(cls_score.exp(), max=INF) +
+        #     torch.clamp(objectness.exp(), max=INF))
         normalized_cls_score = normalized_cls_score.view(N, -1, H, W)
         return normalized_cls_score, bbox_reg
+        # return normalized_cls_score, bbox_reg, cls_score, objectness, bbox_reg
+
+    @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
+    def get_bboxes(self,
+                   cls_scores,
+                   bbox_preds,
+                   dummy_cls,
+                   dummy_obj,
+                   dummy_reg,
+                   img_metas,
+                   cfg=None,
+                   rescale=False,
+                   with_nms=True):
+        res =  super(YOLOFHead, self).get_bboxes(cls_scores,
+                                                 bbox_preds,
+                                                 img_metas,
+                                                 cfg=cfg,
+                                                 rescale=rescale,
+                                                 with_nms=with_nms)
+        return res
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
     def loss(self,
              cls_scores,
              bbox_preds,
+             # dummy_cls,
+             # dummy_obj,
+             # dummy_reg,
              gt_bboxes,
              gt_labels,
              img_metas,

@@ -26,9 +26,9 @@ class ACBlock(nn.Module):
         #     self.conv = nn.ModuleList([self.conv_kxk, self.conv_kx1, self.conv_1xk])
         # self.conv = ConvModule(in_ch, out_ch, kernel_size=kernel_size, stride=1, padding=kernel_size//2,
         #                        norm_cfg=norm_cfg)
-        self.init_weight()
+        self.init_weights()
 
-    def init_weight(self):
+    def init_weights(self):
         def ini(module):
             for name, child in module.named_children():
                 if isinstance(child, (nn.modules.batchnorm._BatchNorm, nn.SyncBatchNorm)):

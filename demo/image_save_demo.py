@@ -14,9 +14,9 @@ def parse_args():
     parser.add_argument('checkpoint', help='Checkpoint file')
 
     parser.add_argument(
-        '--device', default='cuda:0', help='Device used for inference')
+        '--device', default='cpu', help='Device used for inference')
     parser.add_argument(
-        '--score-thr', type=float, default=0.3, help='bbox score threshold')
+        '--score-thr', type=float, default=0.15, help='bbox score threshold')
     parser.add_argument(
         '--async-test',
         action='store_true',
@@ -63,7 +63,7 @@ def main(args):
     assert os.path.isdir(args.out_file)
     img_file_list = os.listdir(args.img_file)
     for img_name in img_file_list:
-        if not img_name[-4:] not in ["jpg", "png", "bmp"]:
+        if  img_name[-3:] not in ["jpg", "png", "bmp"]:
             warnings.warn(f"{img_name} is not a image name")
             continue
         img_path = os.path.join(args.img_file, img_name)
@@ -75,8 +75,7 @@ def main(args):
 
     # show the results
 
-
-
+# ../../../../media/traindata/coco/val2017/images/   ../../../../media/traindata/yolox_test/
 
 async def async_main(args):
     # build the model from a config file and a checkpoint file

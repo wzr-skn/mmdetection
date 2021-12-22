@@ -17,3 +17,10 @@ class YOLOF(SingleStageDetector):
                  pretrained=None):
         super(YOLOF, self).__init__(backbone, neck, bbox_head, train_cfg,
                                     test_cfg, pretrained)
+
+    def forward_dummy(self, img):
+        normalized_cls_score, bbox_reg, cls_score, objectness, dummy_bbox_reg = super().forward_dummy(img)
+        import torch.nn.functional as F
+        normalized_cls_score = F.sigmoid(normalized_cls_score[0])
+        # return cls_score, objectness, bbox_reg
+        return normalized_cls_score, bbox_reg

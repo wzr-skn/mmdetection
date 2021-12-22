@@ -4,7 +4,7 @@ data_root = '/media/traindata_ro/users/yl3076/'
 
 base_lr = 0.01
 warmup_iters = 500
-
+# fp16 = dict(loss_scale=512.)
 model = dict(
     type='CenterNet',
     backbone=dict(
@@ -13,7 +13,8 @@ model = dict(
         stage_channels=(32, 64, 96, 128),
         block_per_stage=(1, 3, 6, 8),
         kernel_size=[3, 3, 3, 3],
-        num_out=1,
+        num_out=1
+        # conv_cfg=dict(type="RepVGGConv")
         # conv_type="DBBBlock"
     ),
 
@@ -29,8 +30,8 @@ model = dict(
         in_channel=16,
         feat_channel=16,
         loss_center_heatmap=dict(type='GaussianFocalLoss', loss_weight=1.0),
-        loss_wh=dict(type='SmoothL1Loss', loss_weight=0.2),
-        loss_offset=dict(type='SmoothL1Loss', loss_weight=2.0)),
+        loss_wh=dict(type='SmoothL1Loss', loss_weight=0.05),
+        loss_offset=dict(type='SmoothL1Loss', loss_weight=0.5)),
     train_cfg=None,
     test_cfg=dict(topk=100, local_maximum_kernel=3, max_per_img=100))
 cudnn_benchmark = True
@@ -157,7 +158,7 @@ log_config = dict(
 device_ids = range(1)
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/CenterNet_RepVGG_smoothl1loss_2'
+work_dir = './work_dirs/CenterNet_VGG_RepVGG_smoothl1loss_0.5'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

@@ -18,6 +18,12 @@ from mmdet.datasets import (build_dataloader, build_dataset,
                             replace_ImageToTensor)
 from mmdet.models import build_detector
 
+# def recursive_fuse_conv(module, prefix=''):
+#     for name, child in module._modules.items():
+#         if not hasattr(child, 'fuse_conv'):
+#             recursive_fuse_conv(child, prefix + name + '.')
+#         else:
+#             child.fuse_conv()
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -191,6 +197,9 @@ def main():
     checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
     if args.fuse_conv_bn:
         model = fuse_conv_bn(model)
+    # with torch.no_grad():
+    #     model.eval()
+    #     recursive_fuse_conv(model)
     # old versions did not save class info in checkpoints, this walkaround is
     # for backward compatibility
     if 'CLASSES' in checkpoint.get('meta', {}):
@@ -199,7 +208,7 @@ def main():
         model.CLASSES = dataset.CLASSES
 
     if not distributed:
-        model = MMDataParallel(model, device_ids=[0])
+        model = MMDataParallel(model, device_ids=[1])
         outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
                                   args.show_score_thr)
     else:

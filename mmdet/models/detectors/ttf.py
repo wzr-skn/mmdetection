@@ -16,5 +16,7 @@ class TTFNet(SingleStageDetector):
     def forward_dummy(self, img):
         hm, wh = super().forward_dummy(img)
         import torch.nn.functional as F
-        return F.sigmoid(hm), wh
+        hm = F.sigmoid(hm)
+        hm_maxpool = F.max_pool2d(hm, 3, stride=1, padding=1)
+        return hm, hm_maxpool, wh
 

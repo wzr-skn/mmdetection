@@ -5,6 +5,8 @@ import torch
 from mmcv import DictAction
 from mmcv.runner import load_checkpoint
 from mmdet.models import build_detector
+from onnxsim import simplify
+import onnx
 
 
 def recursive_fuse_conv(module, prefix=''):
@@ -66,7 +68,7 @@ def parse_args():
         '--shape',
         type=int,
         nargs='+',
-        default=[1, 3, 224, 224],
+        default=[1, 3, 256, 512],
         help='input image size')
     parser.add_argument(
         '--cfg-options',
@@ -134,3 +136,13 @@ if __name__ == '__main__':
         args.output_names,
         args.input_names,
         output_file=args.output_file)
+
+    model_opt, check_ok = simplify(args.output_file,
+                                   3,
+                                   True,
+                                   False,
+                                   dict(),
+                                   None,
+                                   False,
+                                   )
+    onnx.save(model_opt, args.output_file)

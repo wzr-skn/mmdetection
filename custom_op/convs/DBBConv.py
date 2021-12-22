@@ -62,9 +62,9 @@ class DBBConv(nn.Conv2d):
 
         self.conv = nn.ModuleList([self.conv_kxk, self.kxk_1x1, self.conv_1x1_avg, self.conv_1x1])
 
-        self.init_weight()
+        self.init_weights()
 
-    def init_weight(self):
+    def init_weights(self):
         def ini(module):
             for name, child in module.named_children():
                 if isinstance(child, (nn.modules.batchnorm._BatchNorm, nn.SyncBatchNorm)):

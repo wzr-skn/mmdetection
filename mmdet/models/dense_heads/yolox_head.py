@@ -13,6 +13,7 @@ from mmdet.core import (MlvlPointGenerator, bbox_xyxy_to_cxcywh,
 from ..builder import HEADS, build_loss
 from .base_dense_head import BaseDenseHead
 from .dense_test_mixins import BBoxTestMixin
+from mmcv.runner import BaseModule, auto_fp16, force_fp32
 
 
 @HEADS.register_module()
@@ -75,6 +76,7 @@ class YOLOXHead(BaseDenseHead, BBoxTestMixin):
                      use_sigmoid=True,
                      reduction='sum',
                      loss_weight=1.0),
+                 use_loss_obj = False,
                  loss_l1=dict(type='L1Loss', reduction='sum', loss_weight=1.0),
                  train_cfg=None,
                  test_cfg=None,
@@ -106,6 +108,7 @@ class YOLOXHead(BaseDenseHead, BBoxTestMixin):
         self.loss_cls = build_loss(loss_cls)
         self.loss_bbox = build_loss(loss_bbox)
         self.loss_obj = build_loss(loss_obj)
+        self.use_loss_obj = use_loss_obj
 
         self.use_l1 = False  # This flag will be modified by hooks.
         self.loss_l1 = build_loss(loss_l1)
@@ -315,6 +318,8 @@ class YOLOXHead(BaseDenseHead, BBoxTestMixin):
             dets, keep = batched_nms(bboxes, scores, labels, cfg.nms)
             return dets, labels[keep]
 
+
+    @force_fp32(apply_to=['cls_scores', 'bbox_preds', 'objectnesses'])
     def loss(self,
              cls_scores,
              bbox_preds,
@@ -385,6 +390,11 @@ class YOLOXHead(BaseDenseHead, BBoxTestMixin):
         loss_bbox = self.loss_bbox(
             flatten_bboxes.view(-1, 4)[pos_masks],
             bbox_targets) / num_total_samples
+
+        # focal loss modified
+        if self.use_loss_obj:
+            obj_targets = obj_targets.long().view(-1)
+
         loss_obj = self.loss_obj(flatten_objectness.view(-1, 1),
                                  obj_targets) / num_total_samples
         loss_cls = self.loss_cls(

@@ -8,6 +8,7 @@ import warnings
 
 import mmcv
 import torch
+torch.multiprocessing.set_sharing_strategy('file_system')
 from mmcv import Config, DictAction
 from mmcv.runner import get_dist_info, init_dist
 from mmcv.utils import get_git_hash
@@ -17,6 +18,7 @@ from mmdet.apis import set_random_seed, train_detector
 from mmdet.datasets import build_dataset
 from mmdet.models import build_detector
 from mmdet.utils import collect_env, get_root_logger
+
 
 
 def parse_args():

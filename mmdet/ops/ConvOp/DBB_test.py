@@ -47,9 +47,9 @@ class DBBBlock(nn.Module):
         self.conv = nn.ModuleList([self.conv_kxk, self.kxk_1x1, self.conv_1x1_avg, self.conv_1x1])
 
 
-        self.init_weight()
+        self.init_weights()
 
-    def init_weight(self):
+    def init_weights(self):
         def ini(module):
             for name, child in module.named_children():
                 if isinstance(child, (nn.modules.batchnorm._BatchNorm, nn.SyncBatchNorm)):
@@ -100,7 +100,7 @@ class DBBBlock(nn.Module):
 
 x = torch.randn(1, 64, 256, 256)
 DBBUnit = DBBBlock(64, 64, stride=1)
-# DBBUnit.eval()
+DBBUnit.eval()
 y_train = DBBUnit(x)
 DBBUnit.fuse_conv()
 y_test = DBBUnit(x)
