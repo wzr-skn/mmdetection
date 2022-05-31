@@ -2736,3 +2736,231 @@ class YOLOXHSVRandomAug:
         repr_str += f'saturation_delta={self.saturation_delta}, '
         repr_str += f'value_delta={self.value_delta})'
         return repr_str
+
+
+@PIPELINES.register_module()
+class MotionBlur:
+    def __init__(self,
+                 prob=0.5,
+                 degree=(5, 30),
+                 angle=(0, 360),
+
+                 aug_keys=['img'],
+                 ):
+        self.prob = prob
+        self.degree = degree
+        self.angle = angle
+        # self.tpss = cv2.createThinPlateSplineShapeTransformer
+        self.aug_keys = aug_keys
+
+    def __call__(self, results):
+        # use_prior = results['use_prior']
+        # TODO better logit
+        if np.random.random() < self.prob:
+            return results
+        degree = np.random.randint(*self.degree)
+        angle = np.random.randint(*self.angle)
+        M = cv2.getRotationMatrix2D((degree / 2, degree / 2), angle, 1)
+        motion_blur_kernel = np.diag(np.ones(degree))
+        motion_blur_kernel = cv2.warpAffine(motion_blur_kernel, M, (degree, degree))
+        motion_blur_kernel = motion_blur_kernel / degree
+
+        aug_keys = results.get('aug_keys', self.aug_keys)
+        for key in aug_keys:
+            results[key] = cv2.filter2D(results[key], -1, motion_blur_kernel)
+        return results
+
+
+@PIPELINES.register_module()
+class RandomRadiusBlur(object):
+    blur_func = dict(gaussion=cv2.GaussianBlur, median=cv2.medianBlur, blur=cv2.blur)
+
+    def __init__(self, prob=0.5, radius=5, std=0):
+        self.prob = prob
+        self.radius = radius
+        self.std =std
+
+    def __call__(self, results):
+        image = results['img']
+        prob = np.random.random()
+        if prob > self.prob:
+            func_name = np.random.choice(['gaussion', 'median', 'blur'])
+            radius = np.random.randint(1, self.radius) // 2 * 2 + 1
+            if func_name == 'mediam':
+                image = self.blur_func[func_name](image, radius)
+            elif func_name == 'gaussion':
+                image = self.blur_func[func_name](image, (radius, radius), self.std)
+            elif func_name == 'blur':
+                image = self.blur_func[func_name](image, (radius, radius))
+
+        results['img'] = image
+        return results
+
+
+@PIPELINES.register_module()
+class CenterBoxCrop:
+    def __init__(self,
+                 max_num,
+                 crop_factor,
+                 iof_thresh=0.1,
+                 test=False):
+        self.max_num = max_num
+        if len(crop_factor) == 1:
+            self.crop_factor = [crop_factor for _ in range(4)]
+        else:
+            assert len(crop_factor) == 4
+            self.crop_factor = crop_factor
+        self.crop_factor = crop_factor
+        self.iof_thresh = iof_thresh
+        self.test =test
+
+    def _crop_img(self, bboxes, labels, img):
+        img_w = img.shape[1]
+        img_h = img.shape[0]
+        num_bboxes = len(bboxes)
+        flag = False
+        for i in range(50):
+            index = np.random.randint(0, num_bboxes)
+            choosed_bbox = bboxes[index]
+            x1, y1, x2, y2 = choosed_bbox
+            bbox_w = x2 - x1
+            bbox_h = y2 - y1
+            if min(bbox_w, bbox_h) > 10:
+                flag = True
+                break
+        if not flag:
+            return bboxes, labels, np.array([0, 0, img_w, img_h])
+
+        cropped_x1 = np.clip(x1 - np.random.random() * self.crop_factor[0] * bbox_w, 0, img_w)
+        cropped_y1 = np.clip(y1 - np.random.random() * self.crop_factor[1] * bbox_w, 0, img_h)
+        cropped_x2 = np.clip(x2 + np.random.random() * self.crop_factor[2] * bbox_h, 0, img_w)
+        cropped_y2 = np.clip(y2 + np.random.random() * self.crop_factor[3] * bbox_h, 0, img_h)
+
+        crop_bboxes = np.tile(np.array([cropped_x1, cropped_y1, cropped_x2, cropped_y2]).reshape(1, 4), (num_bboxes, 1))
+        inner_left = np.maximum(crop_bboxes[..., 0], bboxes[..., 0])
+        inner_top = np.maximum(crop_bboxes[..., 1], bboxes[..., 1])
+        inner_right = np.minimum(crop_bboxes[..., 2], bboxes[..., 2])
+        inner_bottom = np.minimum(crop_bboxes[..., 3], bboxes[..., 3])
+
+        wh = (bboxes[..., 2:] - bboxes[..., :2])
+
+        inner_w = np.clip(inner_right - inner_left, 0, img_w)
+        inner_h = np.clip(inner_bottom - inner_top, 0, img_h)
+
+        wh_ratio_min = np.min(np.stack([inner_w, inner_h], axis=1) / wh, axis=1)
+        ratio_mask = wh_ratio_min > np.sqrt(self.iof_thresh)
+        inner_area = inner_w * inner_h
+        bbox_area = wh[..., 0] * wh[..., 1]
+        iof = inner_area / bbox_area
+        valid_index = (iof > self.iof_thresh) * ratio_mask
+        cropped_bboxes = bboxes[valid_index]
+        cropped_bboxes[..., 0::2] = np.clip(cropped_bboxes[..., 0::2] - cropped_x1, 0, cropped_x2 - cropped_x1)
+        cropped_bboxes[..., 1::2] = np.clip(cropped_bboxes[..., 1::2] - cropped_y1, 0, cropped_y2 - cropped_y1)
+        return cropped_bboxes, labels[valid_index], np.array([cropped_x1, cropped_y1, cropped_x2, cropped_y2])
+
+    def __call__(self, results):
+        if self.test:
+            results['border'] = np.array([0., 0., 0., 0.], dtype=np.float32)
+            return results
+
+        bboxes = results['gt_bboxes']
+        labels = results['gt_labels']
+        img = results['img']
+
+        # img_ = np.ascontiguousarray(img.copy())
+        # for box in bboxes:
+        #     x1, y1, x2, y2 = [int(x) for x in box]
+        #     cv2.rectangle(img_, (x1, y1), (x2, y2), (255, 255, 255), 1)
+        # cv2.imwrite(f"img_ori/{results['filename'].split('/')[-1]}.jpg", img_)
+
+        if len(bboxes) == 0:
+            return None
+        for i in range(50):
+            cropped_bboxes, cropped_labels, cropped_cord = self._crop_img(bboxes, labels, img)
+            cropped_x1, cropped_y1, cropped_x2, cropped_y2 = cropped_cord.astype(np.int)
+            cropped_w = cropped_x2 - cropped_x1
+            cropped_h = cropped_y2 - cropped_y1
+            if max(cropped_w, cropped_h) / (min(cropped_w, cropped_h) + 1e-6) > 2:
+                continue
+            if min(cropped_h, cropped_w) < 64:
+                continue
+            if len(cropped_labels) < 1:
+                continue
+            if len(cropped_labels) < self.max_num:
+                img_slice = img[cropped_y1:cropped_y2, cropped_x1:cropped_x2, :]
+                results['img'] = img_slice
+                results['gt_labels'] = cropped_labels
+                results['gt_bboxes'] = cropped_bboxes
+                results['img_shape'] = img_slice.shape
+
+                # img_slice_ = np.ascontiguousarray(img_slice.copy())
+                # for box in cropped_bboxes:
+                #     x1, y1, x2, y2 = [int(x) for x in box]
+                #     cv2.rectangle(img_slice_, (x1, y1), (x2, y2), (255, 255, 255), 1)
+                # cv2.imwrite(f"img/{results['filename'].split('/')[-1]}.jpg", img_slice_)
+
+                return results
+        return None
+
+
+@PIPELINES.register_module()
+class ColorJitter(object):
+    def __init__(self,
+                 rgb_bias=(-32, 32),
+                 rgb_scale=(0.5, 1.5),
+                 hue_bias=(-18, 18),
+                 value_scale=(0.5, 1.5),
+                 ):
+        self.rgb_bias = rgb_bias
+        self.rgb_scale = rgb_scale
+        self.hue_bias = hue_bias
+        self.value_scale = value_scale
+
+    @staticmethod
+    def _convert(image,
+                 alpha=1,
+                 beta=0):
+        tmp = image.astype(float) * alpha + beta
+        tmp[tmp < 0] = 0
+        tmp[tmp > 255] = 255
+        image[:] = tmp
+
+    def __call__(self, results):
+        img = results['img']
+        img = img.copy()
+
+        if random.randint(2):
+            self._convert(img, beta=random.uniform(*self.rgb_bias))
+
+        if random.randint(2):
+            self._convert(img, alpha=random.uniform(*self.rgb_scale))
+
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        if random.randint(2):
+            tmp = img[:, :, 0].astype(int) + random.randint(*self.hue_bias)
+            tmp %= 180
+            img[:, :, 0] = tmp
+
+        if random.randint(2):
+            self._convert(
+                img[:, :, 1], alpha=random.uniform(*self.value_scale))
+
+        img = cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
+        results['img'] = img
+
+        # saved_img = results['img'].copy()
+        # gt_bboxes = results['gt_bboxes']
+        # for box in gt_bboxes:
+        #     x1, y1, x2, y2 = [int(x) for x in box]
+        #     cv2.rectangle(saved_img, (x1, y1), (x2, y2), (255, 255, 255), 2)
+        #
+        # for landmark in results['gt_landmarks']:
+        #     landmark = landmark.reshape(-1, 2)
+        #     for point in landmark:
+        #         x1, y1 = [int(i) for i in point]
+        #         cv2.rectangle(saved_img, (x1, y1), (x1+1, y1+1), (255, 255, 255), 2)
+        #
+        # import time
+        # cv2.imwrite(f'img{time.time()}.jpg', img)
+        return results

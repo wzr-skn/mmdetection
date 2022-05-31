@@ -5,8 +5,6 @@ import torch
 from mmcv import DictAction
 from mmcv.runner import load_checkpoint
 from mmdet.models import build_detector
-from onnxsim import simplify
-import onnx
 
 
 def recursive_fuse_conv(module, prefix=''):
@@ -16,32 +14,34 @@ def recursive_fuse_conv(module, prefix=''):
         else:
             child.fuse_conv()
 
+class NhwcWrapper(torch.nn.Module):
+    def __init__(self, model):
+        super(NhwcWrapper, self).__init__()
+        self._model = model
 
-def pytorch2onnx(model,
-                 input_shape,
-                 output_names,
-                 input_names,
-                 opset_version=11,
-                 output_file='tmp.onnx',
-                 ):
+    def forward(self, input_tensor):
+        nchw_input_tensor = input_tensor.permute(0, 3, 1, 2)
+        return self._model(nchw_input_tensor)
+
+
+def pytorch2pt(model,
+               input_shape,
+               transpose=False,
+               output_file='tmp.pt',
+               ):
     forward_dummy = model.forward_dummy
     model.forward = forward_dummy
-    dummy_input = torch.zeros(input_shape)
 
-    if model.with_mask:
-        output_names.append('masks')
+    if transpose:
+        nhwc_model = NhwcWrapper(model)
+        trace_data = torch.randn(input_shape).permute(0, 2, 3, 1)
+        trace_model = torch.jit.trace(nhwc_model.cpu().eval(), (trace_data))
+        torch.jit.save(trace_model, output_file)
 
-
-    torch.onnx.export(
-        model,
-        dummy_input,
-        output_file,
-        input_names=input_names,
-        output_names=output_names,
-        keep_initializers_as_inputs=True,
-        do_constant_folding=True,
-        opset_version=opset_version)
-
+    else:
+        trace_data = torch.randn(input_shape)
+        trace_model = torch.jit.trace(model.cpu().eval(), (trace_data))
+        torch.jit.save(trace_model, output_file)
 
 def parse_normalize_cfg(test_pipeline):
     transforms = None
@@ -57,13 +57,11 @@ def parse_normalize_cfg(test_pipeline):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Convert MMDetection models to ONNX')
+    parser = argparse.ArgumentParser(description='Convert MMDetection models to pt')
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
-    parser.add_argument('--output-file', type=str, default='tmp.onnx')
-    parser.add_argument('--opset-version', type=int, default=11)
-    parser.add_argument('--output-names', type=str, nargs='+', default=["score", "bboxes"],help='output names of network')
-    parser.add_argument('--input-names', type=str, nargs='+', default=["data"], help='input names of network')
+    parser.add_argument('--output-file', type=str, default='tmp.pt')
+    parser.add_argument('--transpose', type=bool, default=False, help='whether to convert nchw format to nhwc format')
     parser.add_argument(
         '--shape',
         type=int,
@@ -94,14 +92,6 @@ if __name__ == '__main__':
         parsed directly from config file and are deprecated and \
         will be removed in future releases.')
 
-    assert args.opset_version == 11, 'MMDet only support opset 11 now'
-
-    try:
-        from mmcv.onnx.symbolic import register_extra_symbolics
-    except ModuleNotFoundError:
-        raise NotImplementedError('please update mmcv to version>=v1.0.4')
-    register_extra_symbolics(args.opset_version)
-
     cfg = mmcv.Config.fromfile(args.config)
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
@@ -129,20 +119,10 @@ if __name__ == '__main__':
             pass
     recursive_fuse_conv(model)
     input_shape = args.shape
-    # convert model to onnx file
-    pytorch2onnx(
+    transpose = args.transpose
+    # convert model to pt file
+    pytorch2pt(
         model,
-        args.shape,
-        args.output_names,
-        args.input_names,
+        input_shape,
+        transpose,
         output_file=args.output_file)
-
-    model_opt, check_ok = simplify(args.output_file,
-                                   3,
-                                   True,
-                                   False,
-                                   dict(),
-                                   None,
-                                   False,
-                                   )
-    onnx.save(model_opt, args.output_file)

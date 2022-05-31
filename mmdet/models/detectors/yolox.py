@@ -102,6 +102,7 @@ class YOLOX(SingleStageDetector):
         return losses
 
     def _preprocess(self, img, gt_bboxes):
+        self._default_input_size = (img.shape[2], img.shape[3])
         scale_y = self._input_size[0] / self._default_input_size[0]
         scale_x = self._input_size[1] / self._default_input_size[1]
         if scale_x != 1 or scale_y != 1:
@@ -116,7 +117,7 @@ class YOLOX(SingleStageDetector):
         return img, gt_bboxes
 
     def _random_resize(self):
-        tensor = torch.LongTensor(2).cuda()
+        tensor = torch.LongTensor(2).cuda(1)
 
         if self.rank == 0:
             size = random.randint(*self._random_size_range)

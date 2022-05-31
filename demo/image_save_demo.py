@@ -4,7 +4,7 @@ import os
 import warnings
 from mmdet.apis import (async_inference_detector, inference_detector,
                         init_detector)
-
+import time
 
 def parse_args():
     parser = ArgumentParser()
@@ -16,7 +16,7 @@ def parse_args():
     parser.add_argument(
         '--device', default='cpu', help='Device used for inference')
     parser.add_argument(
-        '--score-thr', type=float, default=0.15, help='bbox score threshold')
+        '--score-thr', type=float, default=0.1, help='bbox score threshold')
     parser.add_argument(
         '--async-test',
         action='store_true',
@@ -66,10 +66,14 @@ def main(args):
         if  img_name[-3:] not in ["jpg", "png", "bmp"]:
             warnings.warn(f"{img_name} is not a image name")
             continue
+        print(img_name)
         img_path = os.path.join(args.img_file, img_name)
         out_path = os.path.join(args.out_file, img_name)
 
+        t1 = time.time()
         result = inference_detector(model, img_path)
+        t2 = time.time()
+        print(t2-t1)
         show_result_pyplot(model, img_path, out_path, result, score_thr=args.score_thr)
 
 

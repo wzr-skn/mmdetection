@@ -132,15 +132,20 @@ def imshow_det_bboxes(img,
     polygons = []
     color = []
     for i, (bbox, label) in enumerate(zip(bboxes, labels)):
+        label_text = class_names[
+            label] if class_names is not None else f'class {label}'
+        if label_text != 'person':
+            continue
         bbox_int = bbox.astype(np.int32)
         poly = [[bbox_int[0], bbox_int[1]], [bbox_int[0], bbox_int[3]],
                 [bbox_int[2], bbox_int[3]], [bbox_int[2], bbox_int[1]]]
         np_poly = np.array(poly).reshape((4, 2))
         polygons.append(Polygon(np_poly))
         color.append(bbox_color)
-        label_text = class_names[
-            label] if class_names is not None else f'class {label}'
+        # label_text = class_names[
+        #     label] if class_names is not None else f'class {label}'
         if len(bbox) > 4:
+            # label_text = ''
             label_text += f'|{bbox[-1]:.02f}'
         ax.text(
             bbox_int[0],

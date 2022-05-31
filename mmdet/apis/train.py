@@ -197,7 +197,7 @@ def train_detector(model,
             eval_hook(val_dataloader, **eval_cfg), priority='LOW')
 
     if cfg.resume_from:
-        runner.resume(cfg.resume_from, map_location="cuda:1")
+        runner.resume(cfg.resume_from, map_location="cuda:3")
     elif cfg.load_from:
         runner.load_checkpoint(cfg.load_from)
     runner.run(data_loaders, cfg.workflow)

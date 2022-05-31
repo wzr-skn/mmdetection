@@ -373,6 +373,7 @@ class AnchorHead(BaseDenseHead, BBoxTestMixin):
             img_metas,
             label_channels=label_channels,
             unmap_outputs=unmap_outputs)
+        # all_label_weights中正负样本权重为1，忽略样本权重为0.
         (all_labels, all_label_weights, all_bbox_targets, all_bbox_weights,
          pos_inds_list, neg_inds_list, sampling_results_list) = results[:7]
         rest_results = list(results[7:])  # user-added return values
