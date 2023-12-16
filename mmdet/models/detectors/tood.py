@@ -21,3 +21,7 @@ class TOOD(SingleStageDetector):
 
     def set_epoch(self, epoch):
         self.bbox_head.epoch = epoch
+
+    def forward_dummy(self, img):
+        cls_score, bbox_pred = super().forward_dummy(img)
+        return cls_score, bbox_pred

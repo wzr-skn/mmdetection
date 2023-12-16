@@ -6,6 +6,7 @@ import torch
 from mmcv import Config, DictAction
 
 from mmdet.models import build_detector
+from tools.deployment.pytorch2onnx_sim import recursive_fuse_conv
 
 try:
     from mmcv.cnn import get_model_complexity_info
@@ -17,10 +18,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
     parser.add_argument('config', help='train config file path')
     parser.add_argument(
+        '--deploy', action='store_true', help='fuse conv')
+    parser.add_argument(
         '--shape',
         type=int,
         nargs='+',
-        default=[1280, 800],
+        default=[1024, 576],
         help='input image size')
     parser.add_argument(
         '--cfg-options',
@@ -71,6 +74,8 @@ def main():
     if torch.cuda.is_available():
         model.cuda()
     model.eval()
+    if args.deploy:
+        recursive_fuse_conv(model)
 
     if hasattr(model, 'forward_dummy'):
         model.forward = model.forward_dummy

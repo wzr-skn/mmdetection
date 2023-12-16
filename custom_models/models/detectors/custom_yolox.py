@@ -6,14 +6,14 @@ import torch.distributed as dist
 import torch.nn.functional as F
 from mmcv.runner import get_dist_info
 
-from ...utils import log_img_scale
-from ..builder import DETECTORS
-from .single_stage import SingleStageDetector
+from mmdet.utils import log_img_scale
+from mmdet.models.builder import DETECTORS
+from mmdet.models.detectors import SingleStageDetector
 from mmcv.cnn import ConvModule
-from torch.utils.data import  DataLoader
+from torch.utils.data import DataLoader
 
 @DETECTORS.register_module()
-class YOLOX(SingleStageDetector):
+class CUSTOM_YOLOX(SingleStageDetector):
     r"""Implementation of `YOLOX: Exceeding YOLO Series in 2021
     <https://arxiv.org/abs/2107.08430>`_
 
@@ -56,8 +56,8 @@ class YOLOX(SingleStageDetector):
                  random_size_range=(15, 25),
                  random_size_interval=10,
                  init_cfg=None):
-        super(YOLOX, self).__init__(backbone, neck, bbox_head, train_cfg,
-                                    test_cfg, pretrained, init_cfg)
+        super(CUSTOM_YOLOX, self).__init__(backbone, neck, bbox_head, train_cfg,
+                                           test_cfg, pretrained, init_cfg)
         log_img_scale(input_size, skip_square=True)
         self.rank, self.world_size = get_dist_info()
         self._default_input_size = input_size
@@ -93,8 +93,8 @@ class YOLOX(SingleStageDetector):
         # Multi-scale training
         img, gt_bboxes = self._preprocess(img, gt_bboxes)
 
-        losses = super(YOLOX, self).forward_train(img, img_metas, gt_bboxes,
-                                                  gt_labels, gt_bboxes_ignore)
+        losses = super(CUSTOM_YOLOX, self).forward_train(img, img_metas, gt_bboxes,
+                                                         gt_labels, gt_bboxes_ignore)
 
         # random resizing
         if (self._progress_in_iter + 1) % self._random_size_interval == 0:
@@ -119,7 +119,7 @@ class YOLOX(SingleStageDetector):
         return img, gt_bboxes
 
     def _random_resize(self):
-        tensor = torch.LongTensor(2).cuda(1)
+        tensor = torch.LongTensor(2).cuda()
 
         if self.rank == 0:
             size = random.randint(*self._random_size_range)
@@ -146,9 +146,10 @@ class YOLOX(SingleStageDetector):
     #     return object_cls_score, bbox_reg
 
     def forward_dummy(self, img):
-        cls_score, bbox_reg, objectness = super().forward_dummy(img)
+
+        cls_score, bbox_reg = super().forward_dummy(img)
         # import torch.nn.functional as F
         # for i in range(len(cls_score)):
         #     cls_score[i].sigmoid_()
         #     objectness[i].sigmoid_()
-        return cls_score, bbox_reg, objectness
+        return cls_score, bbox_reg

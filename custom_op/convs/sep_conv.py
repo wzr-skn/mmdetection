@@ -22,10 +22,10 @@ class SepConv(nn.Conv2d):
         self.bias = None
 
         self.conv = nn.Sequential(
-            ConvModule(in_channels=in_channels, out_channels=out_channels, groups=in_channels,
-                       kernel_size=1),
-            ConvModule(in_channels=in_channels, out_channels=out_channels, stride=stride,
-                       kernel_size=3, padding=1, bias=bias)
+            ConvModule(in_channels=in_channels, out_channels=in_channels, groups=in_channels,
+                       kernel_size=3, padding=1, stride=stride, norm_cfg=norm_cfg),
+            ConvModule(in_channels=in_channels, out_channels=out_channels, stride=1,
+                       kernel_size=1, padding=0, act_cfg=None)
         )
 
     def forward(self, x, activate=True, norm=True):

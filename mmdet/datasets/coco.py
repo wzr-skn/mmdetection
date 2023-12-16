@@ -66,7 +66,7 @@ class CocoDataset(CustomDataset):
             ann_file (str): Path of annotation file.
 
         Returns:
-            list[dict]: Annotation info from COCO api.
+            list[dict]: Annotation info from COCO apiload_proposals.
         """
 
         self.coco = COCO(ann_file)

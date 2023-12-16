@@ -781,6 +781,15 @@ class LoadPasetImages(LoadImageFromFile):
         y2 = np.max(index_y)
 
         icon = icon[x1:x2, y1:y2, :]
+        # 变量命名应该改成如下所述才对
+        # index_y, index_x = np.where(gray_icon != 0)
+        #
+        # y1 = np.min(index_y)
+        # y2 = np.max(index_y)
+        # x1 = np.min(index_x)
+        # x2 = np.max(index_x)
+        #
+        # icon = icon[y1:y2, x1:x2, :]
 
         image_height, image_width = image.shape[:2]
         icon_height, icon_width = icon.shape[:2]

@@ -5,6 +5,7 @@ from .builder import (BACKBONES, DETECTORS, HEADS, LOSSES, NECKS, build_backbone
 from .dense_heads import *
 from .necks import *
 from .backbones import *
+from .models import *
 # from .dense_heads import *  # noqa: F401,F403
 # from .detectors import *  # noqa: F401,F403
 # from .losses import *  # noqa: F401,F403

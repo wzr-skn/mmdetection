@@ -50,12 +50,14 @@ class YOLOXPAFPN_DBB(BaseModule):
                      mode='fan_in',
                      nonlinearity='leaky_relu'),
                  conv_type="DBBBlock",
-                 dilate = 1,
-                 only_one_output = False):
+                 dilate=1,
+                 only_first_output=False,
+                 only_last_output=False):
         super(YOLOXPAFPN_DBB, self).__init__(init_cfg)
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.only_one_output = only_one_output
+        self.only_first_output = only_first_output
+        self.only_last_output = only_last_output
 
         conv = DepthwiseSeparableConvModule if use_depthwise else ConvModule
         CONV_TYPE = build_op(conv_type)
@@ -83,19 +85,21 @@ class YOLOXPAFPN_DBB(BaseModule):
                     conv_cfg=conv_cfg,
                     norm_cfg=norm_cfg,
                     act_cfg=act_cfg,
-                    conv_type="DBBBlock"))
+                    conv_type=conv_type))
 
         # build bottom-up blocks
-        if self.only_one_output is False:
+        if self.only_first_output is False:
             self.downsamples = nn.ModuleList()
             self.bottom_up_blocks = nn.ModuleList()
             for idx in range(len(in_channels) - 1):
                 self.downsamples.append(
-                    CONV_TYPE(
+                    conv(
                         in_channels[idx],
                         in_channels[idx],
                         3,
                         stride=2,
+                        padding=1,
+                        conv_cfg=conv_cfg,
                         norm_cfg=norm_cfg,
                         act_cfg=act_cfg))
                 # 加入了dilate配合forward部分add的修改
@@ -109,17 +113,24 @@ class YOLOXPAFPN_DBB(BaseModule):
                         conv_cfg=conv_cfg,
                         norm_cfg=norm_cfg,
                         act_cfg=act_cfg,
-                        conv_type="DBBBlock"))
+                        conv_type=conv_type))
 
-            self.out_convs = nn.ModuleList()
-            for i in range(len(in_channels)):
-                self.out_convs.append(
-                    ConvModule(
-                        in_channels[i],
-                        out_channels,
-                        1,
-                        norm_cfg=norm_cfg,
-                        act_cfg=act_cfg))
+            if self.only_last_output is False:
+                self.out_convs = nn.ModuleList()
+                for i in range(len(in_channels)):
+                    self.out_convs.append(
+                        ConvModule(
+                            in_channels[i],
+                            out_channels,
+                            1,
+                            norm_cfg=norm_cfg,
+                            act_cfg=act_cfg))
+            else:
+                self.out_convs = ConvModule(in_channels[-1],
+                                            out_channels,
+                                            1,
+                                            norm_cfg=norm_cfg,
+                                            act_cfg=act_cfg)
 
         else:
             self.out_convs = ConvModule(in_channels[0],
@@ -154,7 +165,7 @@ class YOLOXPAFPN_DBB(BaseModule):
                 torch.add(upsample_feat, feat_low))
             inner_outs.insert(0, inner_out)
 
-        if self.only_one_output is False:
+        if self.only_first_output is False:
             # bottom-up path
             outs = [inner_outs[0]]
             for idx in range(len(self.in_channels) - 1):
@@ -167,11 +178,15 @@ class YOLOXPAFPN_DBB(BaseModule):
                     torch.add(downsample_feat, feat_height))
                 outs.append(out)
 
-            # out convs
-            for idx, conv in enumerate(self.out_convs):
-                outs[idx] = conv(outs[idx])
+            if self.only_last_output is False:
+                # out convs
+                for idx, conv in enumerate(self.out_convs):
+                    outs[idx] = conv(outs[idx])
+                return tuple(outs)
 
-            return tuple(outs)
+            else:
+                outs = [self.out_convs(outs[-1])]
+                return tuple(outs)
 
         else:
             outs = [self.out_convs(inner_outs[0])]

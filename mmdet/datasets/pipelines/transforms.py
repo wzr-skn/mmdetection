@@ -1905,7 +1905,8 @@ class CutOut:
                  n_holes,
                  cutout_shape=None,
                  cutout_ratio=None,
-                 fill_in=(0, 0, 0)):
+                 fill_in=(0, 0, 0),
+                 max_cutout_ratio=None):
 
         assert (cutout_shape is None) ^ (cutout_ratio is None), \
             'Either cutout_shape or cutout_ratio should be specified.'
@@ -1921,6 +1922,7 @@ class CutOut:
         self.candidates = cutout_ratio if self.with_ratio else cutout_shape
         if not isinstance(self.candidates, list):
             self.candidates = [self.candidates]
+        self.max_cutout_ratio = max_cutout_ratio
 
     def __call__(self, results):
         """Call function to drop some regions of image."""
@@ -1935,6 +1937,14 @@ class CutOut:
             else:
                 cutout_w = int(self.candidates[index][0] * w)
                 cutout_h = int(self.candidates[index][1] * h)
+
+            if self.max_cutout_ratio is not None:
+                max_cutout_w = int(w * self.max_cutout_ratio)
+                max_cutout_h = int(h * self.max_cutout_ratio)
+                if max_cutout_w < cutout_w:
+                    cutout_w = max_cutout_w
+                if max_cutout_h < cutout_h:
+                    cutout_h = max_cutout_h
 
             x2 = np.clip(x1 + cutout_w, 0, w)
             y2 = np.clip(y1 + cutout_h, 0, h)
@@ -2984,7 +2994,9 @@ class CenterBoxCrop:
                  max_num,
                  crop_factor,
                  iof_thresh=0.1,
-                 test=False):
+                 test=False,
+                 keep_min_expand=False,
+                 min_expand=[0, 0]):
         self.max_num = max_num
         if len(crop_factor) == 1:
             self.crop_factor = [crop_factor for _ in range(4)]
@@ -2993,7 +3005,9 @@ class CenterBoxCrop:
             self.crop_factor = crop_factor
         self.crop_factor = crop_factor
         self.iof_thresh = iof_thresh
-        self.test =test
+        self.test = test
+        self.keep_min_expand = keep_min_expand
+        self.min_expand = min_expand
 
     def _crop_img(self, bboxes, labels, img):
         img_w = img.shape[1]
@@ -3012,10 +3026,18 @@ class CenterBoxCrop:
         if not flag:
             return bboxes, labels, np.array([0, 0, img_w, img_h])
 
-        cropped_x1 = np.clip(x1 - np.random.random() * self.crop_factor[0] * bbox_w, 0, img_w)
-        cropped_y1 = np.clip(y1 - np.random.random() * self.crop_factor[1] * bbox_w, 0, img_h)
-        cropped_x2 = np.clip(x2 + np.random.random() * self.crop_factor[2] * bbox_h, 0, img_w)
-        cropped_y2 = np.clip(y2 + np.random.random() * self.crop_factor[3] * bbox_h, 0, img_h)
+        if self.keep_min_expand:
+            min_expand_x = bbox_w * self.min_expand[0]
+            min_expand_y = bbox_h * self.min_expand[1]
+            cropped_x1 = np.clip(x1 - min_expand_x - np.random.random() * self.crop_factor[0] * bbox_w, 0, img_w)
+            cropped_y1 = np.clip(y1 - min_expand_y - np.random.random() * self.crop_factor[1] * bbox_h, 0, img_h)
+            cropped_x2 = np.clip(x2 + min_expand_x + np.random.random() * self.crop_factor[2] * bbox_w, 0, img_w)
+            cropped_y2 = np.clip(y2 + min_expand_y + np.random.random() * self.crop_factor[3] * bbox_h, 0, img_h)
+        else:
+            cropped_x1 = np.clip(x1 - np.random.random() * self.crop_factor[0] * bbox_w, 0, img_w)
+            cropped_y1 = np.clip(y1 - np.random.random() * self.crop_factor[1] * bbox_h, 0, img_h)
+            cropped_x2 = np.clip(x2 + np.random.random() * self.crop_factor[2] * bbox_w, 0, img_w)
+            cropped_y2 = np.clip(y2 + np.random.random() * self.crop_factor[3] * bbox_h, 0, img_h)
 
         crop_bboxes = np.tile(np.array([cropped_x1, cropped_y1, cropped_x2, cropped_y2]).reshape(1, 4), (num_bboxes, 1))
         inner_left = np.maximum(crop_bboxes[..., 0], bboxes[..., 0])
@@ -3078,7 +3100,7 @@ class CenterBoxCrop:
                 # for box in cropped_bboxes:
                 #     x1, y1, x2, y2 = [int(x) for x in box]
                 #     cv2.rectangle(img_slice_, (x1, y1), (x2, y2), (255, 255, 255), 1)
-                # cv2.imwrite(f"img/{results['filename'].split('/')[-1]}.jpg", img_slice_)
+                # cv2.imwrite(f"/home/ubuntu/mmdetection/{results['filename'].split('/')[-1]}", img_slice_)
 
                 return results
         return None
@@ -3145,3 +3167,62 @@ class ColorJitter(object):
         # import time
         # cv2.imwrite(f'img{time.time()}.jpg', img)
         return results
+
+
+@PIPELINES.register_module()
+class Bbox_CutOut:
+    """only CutOut object bbox.
+
+    """
+
+    def __init__(self,
+                 cutout_ratio=[0, 0.2],
+                 prob=0.5,
+                 fill_in=(0, 0, 0)):
+
+        self.fill_in = fill_in
+        self.prob = prob
+        self.cutout_ratio = cutout_ratio
+
+    def __call__(self, results):
+        """Call function to drop some regions of image."""
+
+        if results['gt_bboxes'] is None:
+            return results
+
+        h, w, c = results['img'].shape
+        for i in range(len(results['gt_bboxes'])):
+            if np.random.random() > self.prob:
+                continue
+            x1, y1, x2, y2 = results['gt_bboxes'][i]
+            bbox_w = x2 - x1
+            bbox_h = y2 - y1
+
+            # 随机选择是从左上角坐标(x1, y1)向下或向右cutout(random()<0.5)，还是从右下角坐标(x2, y2)向上或向左cutout(random>0.5)
+            if np.random.random() < 0.5:
+                # np.random.random()<0.5则向下cutout，>0.5则向右cutout。
+                if np.random.random() < 0.5:
+                    y2 = y1 + np.random.uniform(self.cutout_ratio[0], self.cutout_ratio[1]) * bbox_h
+                else:
+                    x2 = x1 + np.random.uniform(self.cutout_ratio[0], self.cutout_ratio[1]) * bbox_w
+            else:
+                # np.random.random()<0.5则向上cutout，>0.5则向左cutout。
+                if np.random.random() < 0.5:
+                    y1 = y2 - np.random.uniform(self.cutout_ratio[0], self.cutout_ratio[1]) * bbox_h
+                else:
+                    x1 = x2 - np.random.uniform(self.cutout_ratio[0], self.cutout_ratio[1]) * bbox_w
+
+            x1 = int(np.clip(x1, 0, w))
+            x2 = int(np.clip(x2, 0, w))
+            y1 = int(np.clip(y1, 0, h))
+            y2 = int(np.clip(y2, 0, h))
+            results['img'][y1:y2, x1:x2, :] = self.fill_in
+
+        return results
+
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'(cutout_ratio={self.cutout_ratio}, '
+        repr_str += f'fill_in={self.fill_in})'
+        return repr_str

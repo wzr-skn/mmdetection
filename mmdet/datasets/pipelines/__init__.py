@@ -14,7 +14,7 @@ from .transforms import (Albu, CopyPaste, CutOut, Expand, MinIoURandomCrop,
                          MixUp, Mosaic, Normalize, Pad, PhotoMetricDistortion,
                          RandomAffine, RandomCenterCropPad, RandomCrop, RandomFlip,
                          RandomShift, Resize, SegRescale, YOLOXHSVRandomAug,
-                         MotionBlur, RandomRadiusBlur, CenterBoxCrop, ColorJitter)
+                         MotionBlur, RandomRadiusBlur, CenterBoxCrop, ColorJitter, Bbox_CutOut)
 
 __all__ = [
     'Compose', 'to_tensor', 'ToTensor', 'ImageToTensor', 'ToDataContainer',
@@ -27,5 +27,5 @@ __all__ = [
     'Rotate', 'ColorTransform', 'EqualizeTransform', 'BrightnessTransform',
     'ContrastTransform', 'Translate', 'RandomShift', 'Mosaic', 'MixUp',
     'RandomAffine', 'YOLOXHSVRandomAug', 'MotionBlur', 'RandomRadiusBlur',
-    'CenterBoxCrop', 'ColorJitter', 'CopyPaste'
+    'CenterBoxCrop', 'ColorJitter', 'CopyPaste', 'Bbox_CutOut'
 ]

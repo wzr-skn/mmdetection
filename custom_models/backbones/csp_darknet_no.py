@@ -107,11 +107,13 @@ class DarknetBottleneck(BaseModule):
             act_cfg=act_cfg)
 
         if hidden_channels == out_channels:
-            self.conv2 = CONV_TYPE(
+            self.conv2 = conv(
                 hidden_channels,
                 out_channels,
                 3,
                 stride=1,
+                padding=1,
+                conv_cfg=conv_cfg,
                 norm_cfg=norm_cfg,
                 act_cfg=act_cfg)
         else:

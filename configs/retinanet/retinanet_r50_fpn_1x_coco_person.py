@@ -81,7 +81,7 @@ model = dict(
 
 
 data = dict(
-    samples_per_gpu=10,
+    samples_per_gpu=6,
     workers_per_gpu=8,
     train=dict(
         type='CocoDataset',
@@ -254,5 +254,5 @@ lr_config = dict(
 runner = dict(type='EpochBasedRunner', max_epochs=120)
 
 evaluation = dict(interval=2, metric='bbox', classwise=True)
-work_dir = './work_dirs/30000_yolox_cspdarknet_no_widen_factor0.375'
+work_dir = './work_dirs/retinanet_test_loss'
 gpu_ids = range(0, 2)

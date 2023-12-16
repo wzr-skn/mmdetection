@@ -8,7 +8,7 @@ log_config = dict(interval=20, hooks=[
     ])
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-load_from = './work_dirs/body_detect/1024x576_6cls_yolox_cspdarknet_no_pafpn_RepVGG_load_from_yolox_big_mutiscale_6_add_person/latest.pth'
+load_from = '../work_dirs/body_detect/1024x576_6cls_yolox_cspdarknet_no_pafpn_RepVGG_load_from_yolox_big_mutiscale_6_add_person/latest.pth'
 resume_from = None
 workflow = [('train', 1)]
 dataset_type = 'CocoDataset'
@@ -42,12 +42,13 @@ model = dict(
     # 0.01, and the threshold of the test phase is 0.001.
     test_cfg=dict(score_thr=0.01, nms=dict(type='nms', iou_threshold=0.65)),
     input_size=(800, 800),
-    random_size_range=(12, 36)
+    # random_size_range=(12, 36)
+    random_size_range=(25, 25)
 )
 
 
 data = dict(
-    samples_per_gpu=20,
+    samples_per_gpu=2,
     workers_per_gpu=8,
     train=dict(
         type='CocoDataset',
@@ -60,7 +61,7 @@ data = dict(
             dict(type='Load_4PasetImages',
                  class_names=["person", "chair", "fake_person", "camera"],
                  base_cls_num=3,
-                 image_root="./data_paste_add",
+                 image_root="../data_paste_add",
                  prob_of_copy=[1, 0.5, 0.1, 0.1],
                  ICON_FACTOR=0.2,
                  to_float32=True,
@@ -242,7 +243,7 @@ lr_config = dict(
 #         priority=49)
 # ]
 
-runner = dict(type='EpochBasedRunner', max_epochs=60)
+runner = dict(type='EpochBasedRunner', max_epochs=1000)
 
 evaluation = dict(interval=1, metric='bbox', classwise=True)
 # evaluation = dict(
@@ -254,5 +255,6 @@ evaluation = dict(interval=1, metric='bbox', classwise=True)
 #     interval=2,
 #     dynamic_intervals=[(105, 1)],
 #     metric='bbox')
-work_dir = './work_dirs/body_detect/1024x576_6cls_yolox_cspdarknet_no_pafpn_RepVGG_load_from_yolox_big_mutiscale_7_add_person'
+# work_dir = './work_dirs/body_detect/1024x576_6cls_yolox_cspdarknet_no_pafpn_RepVGG_load_from_yolox_big_mutiscale_7_add_person'
+work_dir = './work_dirs/body_detect/just_sitting'
 gpu_ids = range(0, 2)

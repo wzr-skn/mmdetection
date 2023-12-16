@@ -1,4 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
+import os
 import os.path as osp
 import warnings
 from collections import OrderedDict
@@ -124,6 +125,32 @@ class CustomDataset(Dataset):
                 self.proposals = [self.proposals[i] for i in valid_inds]
             # set group flag for the sampler
             self._set_group_flag()
+
+        # panoptic数据集中对前后两帧过于类似的图片进行删帧处理，但json文件中存放了全部标签，该操作用于保留数据集中存在的图片的标签
+        if len(ann_file) > 19 and ann_file[-19:] == 'panoptic_train.json':
+            img_dir = '/media/traindata/hands_datasets/panoptic/hand143_panopticdb/imgs/'
+            img_list = os.listdir(img_dir)
+            manual_train_label = self.data_infos[14817:]
+            # 将标签文件中图片名字大写字母改成小写，与存放的图片名字对应
+            for i in range(len(manual_train_label)):
+                manual_train_label[i]['file_name'] = manual_train_label[i]['file_name'].lower()
+                manual_train_label[i]['filename'] = manual_train_label[i]['filename'].lower()
+            hand143_panopticdb = []
+            for img in img_list:
+                img_number = int(img[:-4])
+                hand143_panopticdb.append(self.data_infos[img_number])
+
+            self.data_infos = manual_train_label + hand143_panopticdb
+            # self.flag为根据图片长宽比设置的标志符，在GroupSampler中根据self.flag确定了num_sample
+            self.flag = self.flag[:9818]
+
+
+        if len(ann_file) > 18 and ann_file[-18:] == 'panoptic_test.json':
+            # 将标签文件中图片名字大写字母改成小写，与存放的图片名字对应
+            for i in range(len(self.data_infos)):
+                self.data_infos[i]['file_name'] = self.data_infos[i]['file_name'].lower()
+                self.data_infos[i]['filename'] = self.data_infos[i]['filename'].lower()
+
 
         # processing pipeline
         self.pipeline = Compose(pipeline)

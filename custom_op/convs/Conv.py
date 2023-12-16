@@ -25,7 +25,7 @@ class DepthWiseConv(nn.Conv2d):
 
         self.conv = nn.Sequential(
             ConvModule(in_channels=in_channels, out_channels=out_channels, groups=in_channels,
-                       kernel_size=kernel_size, padding=padding, stride=stride, dilation=dilation),
+                       kernel_size=kernel_size, padding=padding, stride=stride, dilation=dilation, act_cfg=None),
         )
 
     def forward(self, x):

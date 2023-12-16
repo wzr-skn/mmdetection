@@ -139,7 +139,11 @@ def draw_labels(ax,
         label_text = class_names[
             label] if class_names is not None else f'class {label}'
         if scores is not None:
-            label_text += f'|{scores[i]:.02f}'
+            # 保留类别标签
+            # label_text += f'|{scores[i]:.02f}'
+
+            # 去掉类别标签
+            label_text = f'|{scores[i]:.02f}'
         text_color = color[i] if isinstance(color, list) else color
 
         font_size_mask = font_size if scales is None else font_size * scales[i]
@@ -295,6 +299,41 @@ def imshow_det_bboxes(img,
     text_colors = [text_palette[label] for label in labels]
 
     num_bboxes = 0
+    # 仅保留人体或手的bbox
+    if labels is not None:
+        num_draw_labels = 0
+        for i in labels:
+            if i == 0:
+                num_draw_labels += 1
+        bboxes = bboxes[:num_draw_labels]
+
+    # 将检测器检出的box截出来保存下来
+    # img_bgr = mmcv.rgb2bgr(img)
+    # if len(bboxes[:]) == 0:
+    #     with open("/home/ubuntu/mmdetection/work_dirs/optimize_head_detect/"
+    #               "yolox_repvgg_1output_noobj_2value_6datasets_customdata_filter_no_keep_cutout_and_0.05bboxcutout/"
+    #               "300w_lp_img/lfpw_flip/miss_det_image.txt", "a") as f:
+    #         f.write(out_file[:]+'\n')
+    # if len(bboxes[:]) > 1:
+    #     with open("/home/ubuntu/mmdetection/work_dirs/optimize_head_detect/"
+    #               "yolox_repvgg_1output_noobj_2value_6datasets_customdata_filter_no_keep_cutout_and_0.05bboxcutout/"
+    #               "300w_lp_img/lfpw_flip/false_det_image.txt", "a") as ff:
+    #         ff.write(out_file[:]+'\n')
+    # for i in range(len(bboxes[:])):
+    #     w = bboxes[i, 2] - bboxes[i, 0]
+    #     h = bboxes[i, 3] - bboxes[i, 1]
+    #     length = max(w, h)
+    #     x = (bboxes[i, 0] + bboxes[i, 2]) / 2
+    #     y = (bboxes[i, 1] + bboxes[i, 3]) / 2
+    #     x1 = int(max(x - length/2, 0))
+    #     y1 = int(max(y - length/2, 0))
+    #     x2 = int(min(x + length/2, img_bgr.shape[1]))
+    #     y2 = int(min(y + length/2, img_bgr.shape[0]))
+    #     img_bgr_number = "_" + str(i)
+    #     if y2 > y1 and x2 > x1:
+    #         mmcv.imwrite(img_bgr[y1:y2, x1:x2, :], out_file[:-4] + img_bgr_number + ".jpg")
+    #     break
+
     if bboxes is not None:
         num_bboxes = bboxes.shape[0]
         bbox_palette = palette_val(get_palette(bbox_color, max_label + 1))

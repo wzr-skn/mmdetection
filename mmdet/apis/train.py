@@ -238,7 +238,7 @@ def train_detector(model,
         cfg.resume_from = resume_from
 
     if cfg.resume_from:
-        runner.resume(cfg.resume_from, map_location="cuda:3")
+        runner.resume(cfg.resume_from, map_location="cuda:2")
     elif cfg.load_from:
         runner.load_checkpoint(cfg.load_from)
     runner.run(data_loaders, cfg.workflow)
